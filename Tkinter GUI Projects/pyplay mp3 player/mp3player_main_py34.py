@@ -14,6 +14,8 @@ from mutagen.easyid3 import EasyID3
 from mutagen.mp3 import MP3
 from PIL import ImageTk, Image
 import subprocess
+import math
+import shutil
 
 class Playlist:
     def __init__(self):
@@ -21,12 +23,19 @@ class Playlist:
         self.isSongStopped = False
         self.VolumeLevel=1.0
         self.dirFilePath = None
+        self.danthologyMode=False
+        self.danthologyDuration=0
+        self.danthologyTimer=0
+        self.windowOpacity=1.0
+        self.progressTime = "Ascending" #possible values: Ascending and Descending
         self.skin=0
         self.SHUFFLE = False
-        self.isListOrdered = 0 #0-onrating ; 1-sorted 2-reversed; 3-random;
+        self.isListOrdered = 0 #0-on songrating ; 1-sorted by name 2-sorted by name reversed; 3-random ....;
         self.validFiles = []
         self.slideImages = []
         self.slideImagesTransitionSeconds = 0;
+        self.usePlayerTitleTransition = True
+        self.playingFileNameTransition = "separation" # values : separation, typewriting, none
         self.usingSlideShow = False
         self.slideImageIndex = 0
         self.currentSongIndex = None
@@ -41,6 +50,7 @@ class Playlist:
         self.customBackgroundPicture = None
         self.customFontColor = None
         self.customChangeBackgroundedLabelsColor = None
+        self.userCreatedColors = []
 
 class Song:
     def __init__(self, filename, filepath, filesize):
@@ -48,6 +58,7 @@ class Song:
         self.filePath = filepath
         self.fileSize = filesize
         self.Rating = 0
+        self.NumberOfPlays = 0
         audio = MP3(self.filePath)
         self.sample_rate = audio.info.sample_rate
         self.channels = audio.info.channels
@@ -59,6 +70,30 @@ class Song:
             self.Genre = "Various"
         else:
             self.Genre = self.Genre[0]
+        try:
+            self.Artist = audio["artist"]
+        except:
+            self.Artist = "Various"
+        else:
+            self.Artist = self.Artist[0]
+        try:
+            self.Title = audio["title"]
+        except:
+            self.Title = "Various"
+        else:
+            self.Title = self.Title[0]
+        try:
+            self.Year = audio["date"]
+        except:
+            self.Year = "Various"
+        else:
+            self.Year = self.Year[0]
+        try:
+            self.Album = audio["album"]
+        except:
+            self.Album = "Various"
+        else:
+            self.Album = self.Album[0]
         self.startPos = 0
         self.endPos = self.Length
         self.fadein_duration = 0
@@ -74,46 +109,86 @@ class CuttingTool:
             self.top.protocol("WM_DELETE_WINDOW", self.destroy)
             Window_Title = "Cutting Tool"
             self.top.title(Window_Title)
-            self.top.geometry("340x360+100+100")
+            self.top.geometry("380x340+100+100")
+            self.top.attributes('-alpha', play_list.windowOpacity)
             allButtonsFont = skinOptions[2][play_list.skin]
+            columnOne = 10
+            columnTwo = 220
             self.InfoLabelText = StringVar()
             self.InfoLabelText.set("Welcome to MP3 Cutting capability:\n\n"
                                +"Please enter Start and End value and Hit OK.\n"
                                 +"This will NOT change the original file.\n\n\n")
-            self.labelInfo = tk.Label(self.top, textvariable=self.InfoLabelText, fg=fontColor.get(), font=allButtonsFont, bg=color).pack()
-            self.labelStartValue = tk.Label(self.top, text="Start Value (0 - " + str(int(play_list.validFiles[play_list.currentSongIndex].Length)) + "):", fg=fontColor.get(), font=allButtonsFont, bg=color).pack()
+            tk.Label(self.top, textvariable=self.InfoLabelText, fg=fontColor.get(), font=allButtonsFont, bg=color).place(x=80, y=10)
+            tk.Label(self.top, text="Start Value (0 - " + str(int(play_list.validFiles[play_list.currentSongIndex].Length)) + "):",
+                                            fg=fontColor.get(), font=allButtonsFont, bg=color).place(x=columnOne, y=80)
 
             self.startValue = tk.Entry(self.top)
-            self.startValue.pack(padx=5)
+            self.startValue.place(x=columnOne, y=100)
             self.startValue.bind("<Return>", self.cutItem)
 
-            self.labelEndValue = tk.Label(self.top, text="End Value (0 - " + str(int(play_list.validFiles[play_list.currentSongIndex].Length)) + "):", fg=fontColor.get(), font=allButtonsFont, bg=color).pack()
+            tk.Label(self.top, text="End Value (0 - " + str(int(play_list.validFiles[play_list.currentSongIndex].Length)) + "):", fg=fontColor.get(),
+                                          font=allButtonsFont, bg=color).place(x=columnOne, y=120)
             self.endValue = tk.Entry(self.top)
-            self.endValue.pack(padx=5)
+            self.endValue.place(x=columnOne, y=140)
 
             self.endValue.bind("<Return>", self.cutItem)
-            self.b = tk.Button(self.top, text="OK", command=self.ok, bg=color, fg=fontColor.get(), font=allButtonsFont)
-            self.b.pack(pady=5)
+            self.buttonOK = tk.Button(self.top, text="OK", command=self.okButtonPressed, bg=color, fg=fontColor.get(), font=allButtonsFont)
+            self.buttonOK.place(x=columnOne, y=170)
 
-            self.labelFadeIn = tk.Label(self.top, text="Add FadeIn: ", fg=fontColor.get(),
-                                           font=allButtonsFont, bg=color).pack()
+            tk.Label(self.top, text="Add FadeIn: ", fg=fontColor.get(), font=allButtonsFont, bg=color).place(x=columnTwo, y=80)
             self.FadeIn = StringVar()
-            self.FadeIn.set("0")
+            self.FadeIn.set(str(play_list.validFiles[play_list.currentSongIndex].fadein_duration))
             fadeOptions = ["5","10","15", "20"]
             self.fadeInBox = Combobox(self.top, textvariable=self.FadeIn, values=fadeOptions)
-            self.fadeInBox.pack(pady=5)
+            self.fadeInBox.place(x=columnTwo, y=100)
             self.fadeInBox.bind("<<ComboboxSelected>>", self.addFadeIn)
 
-            self.labelFadeOut = tk.Label(self.top, text="Add FadeOut: ", fg=fontColor.get(),
-                                        font=allButtonsFont, bg=color).pack()
+            tk.Label(self.top, text="Add FadeOut: ", fg=fontColor.get(), font=allButtonsFont, bg=color).place(x=columnTwo, y=120)
             self.FadeOut = StringVar()
-            self.FadeOut.set("0")
+            self.FadeOut.set(str(play_list.validFiles[play_list.currentSongIndex].fadeout_duration))
             self.fadeOutBox = Combobox(self.top, textvariable=self.FadeOut, values=fadeOptions)
-            self.fadeOutBox.pack(pady=5)
+            self.fadeOutBox.place(x=columnTwo, y=140)
             self.fadeOutBox.bind("<<ComboboxSelected>>", self.addFadeOut)
             self.top.bind("<Escape>", self.destroyEsc)
             self.top.bind("<Tab>", self.focus_Input)
+            self.addFadeInOutAll = tk.Button(self.top, text="Add Fading to All", command=self.addFadingOnPlaylist,
+                                             bg=color,
+                                             fg=fontColor.get(), font=allButtonsFont)
+            self.addFadeInOutAll.place(x=columnTwo, y=170)
+
+            self.restoreButton = tk.Button(self.top, text="Restore Defaults for This Song", command=self.restoreCurrentSong, bg=color, fg=fontColor.get(), font=allButtonsFont)
+            self.restoreButton.place(x=90, y=220)
+
+            self.restoreForAllButton = tk.Button(self.top, text="Restore Defaults for All Songs",
+                                           command=self.restoreAllSongs, bg=color, fg=fontColor.get(),
+                                           font=allButtonsFont)
+            self.restoreForAllButton.place(x=90, y=260)
+
             dialog = self #each instance of CuttingTool will be assigned to this variable:
+
+    def addFadingOnPlaylist(self):
+        global play_list
+        for song in play_list.validFiles:
+            song.fadein_duration = int(self.FadeIn.get())
+            song.fadeout_duration = int(self.FadeOut.get())
+
+    def restoreCurrentSong(self):
+        global Playlist
+        play_list.validFiles[play_list.currentSongIndex].fadein_duration = 0
+        play_list.validFiles[play_list.currentSongIndex].fadeout_duration = 0
+        play_list.validFiles[play_list.currentSongIndex].startPos = 0
+        play_list.validFiles[play_list.currentSongIndex].endPos = play_list.validFiles[play_list.currentSongIndex].Length
+        self.FadeIn.set(str(play_list.validFiles[play_list.currentSongIndex].fadein_duration))
+        self.FadeOut.set(str(play_list.validFiles[play_list.currentSongIndex].fadeout_duration))
+
+    def restoreAllSongs(self):
+        global Playlist
+        global play_list
+        for song in play_list.validFiles:
+            song.fadein_duration = 0
+            song.fadeout_duration = 0
+        self.FadeIn.set(str(play_list.validFiles[play_list.currentSongIndex].fadein_duration))
+        self.FadeOut.set(str(play_list.validFiles[play_list.currentSongIndex].fadeout_duration))
 
     def take_focus(self):
         self.top.wm_attributes("-topmost", 1)
@@ -147,9 +222,9 @@ class CuttingTool:
             textFadeOut.set("FadeOut: " + str(play_list.validFiles[play_list.currentSongIndex].fadeout_duration)+"s")
 
     def cutItem(self, event):
-        self.ok()
+        self.okButtonPressed()
 
-    def ok(self):
+    def okButtonPressed(self):
         global dialog
         if self.startValue.get()!="" and play_list.currentSongIndex!=None:
             try:
@@ -201,7 +276,8 @@ class SearchTool:
         Window_Title = "Search Tool"
         self.top.title(Window_Title)
         self.top.geometry("300x180+100+100")
-        self.top.protocol("WM_DELETE_WINDOW", self.destroy)
+        self.top.protocol("WM_DELETE_WINDOW", self.closeDestroy)
+        self.top.attributes('-alpha', play_list.windowOpacity)
         allButtonsFont = skinOptions[2][play_list.skin]
         InfoLabelText = StringVar()
         InfoLabelText.set("Search for song: \n")
@@ -250,7 +326,12 @@ class SearchTool:
             listbox.select_set(listBox_Song_selected_index)
 
     def destroyEsc(self,event):
-        self.destroy()
+        self.closeDestroy()
+
+    def destroy(self):
+        global dialog
+        self.top.destroy()
+        dialog = None
 
     def playPreviousSearch(self, event):
         global play_list
@@ -270,6 +351,8 @@ class SearchTool:
         listbox.selection_clear(0, tk.END)  # clear existing selection
         listbox.select_set(listBox_Song_selected_index)
         play_list.currentSongIndex = int(real_index)
+        if play_list.danthologyMode == False:
+            play_list.currentSongPosition = 0
         play_music()
 
     def playNextSearch(self, event):
@@ -290,9 +373,11 @@ class SearchTool:
         listbox.selection_clear(0, tk.END)  # clear existing selection
         listbox.select_set(listBox_Song_selected_index)
         play_list.currentSongIndex = int(real_index)
+        if play_list.danthologyMode == False:
+            play_list.currentSongPosition = 0
         play_music()
 
-    def destroy(self):
+    def closeDestroy(self,):
         global dialog
         global listBox_Song_selected_index
         self.top.destroy()
@@ -327,6 +412,7 @@ class Slideshow:
         Slideshow.Window_Title = "Slideshow"
         Slideshow.top.title(Slideshow.Window_Title)
         Slideshow.top.geometry("300x300+10+10")
+        Slideshow.top.attributes('-alpha', play_list.windowOpacity)
         Slideshow.seconds = StringVar()
         Slideshow.seconds.set(play_list.slideImagesTransitionSeconds)
         durationOptions = [1,2,3,4,5,10,15,30,60]
@@ -389,6 +475,7 @@ class Slideshow:
         self.destroy()
 
     def time_set(self,event):
+        global play_list
         play_list.slideImagesTransitionSeconds = Slideshow.seconds.get()
 
     def clearSlideshow(self):
@@ -396,6 +483,7 @@ class Slideshow:
         self.numberOfImages.set("Number of Images: " + str(len(play_list.slideImages)))
 
     def destroy(self):
+        global play_list
         self.top.destroy()
         play_list.usingSlideShow = False
         Slideshow.timer = 0
@@ -446,6 +534,7 @@ class SleepingTool:
         Window_Title = "Sleeping Tool"
         self.top.title(Window_Title)
         self.top.geometry("300x230+100+100")
+        self.top.attributes('-alpha', play_list.windowOpacity)
         if type(allButtonsFont) == StringVar:
             allButtonsFont = allButtonsFont.get()
         self.wakeUpScheduler = None
@@ -574,72 +663,263 @@ class Customize:
     def __init__(self, parent):
         global allButtonsFont
         global dialog
+        global play_list
         color = OpenFileButton["bg"] # get the color which the rest of elements is using at the moment
         self.top = tk.Toplevel(parent, bg=color)
         self.top.protocol("WM_DELETE_WINDOW", self.destroy)
         Window_Title = "Customize"
         self.top.title(Window_Title)
-        self.top.geometry("380x470+100+100")
+        self.top.geometry("650x420+100+100")
+        self.top.attributes('-alpha', play_list.windowOpacity)
+        columnOne = 10
+        columnTwo = 220
+        columnThree = 430
         if type(allButtonsFont) == StringVar:
             allButtonsFont = allButtonsFont.get()
         self.InfoLabelText = StringVar()
         self.InfoLabelText.set("Welcome to Customize capability:\n\n"
                                 +"Here you can customize your player appearance\n"
-                                 +"in any way you like.\n\n\n")
-        self.labelInfo = tk.Label(self.top, textvariable=self.InfoLabelText, fg=fontColor.get(), font=allButtonsFont, bg=color).pack()
+                                 +"in any way you like.\n")
+        tk.Label(self.top, textvariable=self.InfoLabelText, fg=fontColor.get(), font=allButtonsFont, bg=color).place(x=150, y=5)
         
-        self.labelFontColor = tk.Label(self.top, text="Button&Label Color: ", fg=fontColor.get(), font=allButtonsFont, bg=color).pack()
-        
+        self.labelFontColor = tk.Label(self.top, text="Button&Label Color: ", fg=fontColor.get(), font=allButtonsFont, bg=color)
+        self.labelFontColor.place(x=columnOne, y=80)
+
         self.colorBox = Combobox(self.top, textvariable=SkinColor, values=custom_color_list)
-        self.colorBox.pack()
+        self.colorBox.place(x=columnOne, y=100)
         self.colorBox.bind("<<ComboboxSelected>>", changingBackgroundElementColor)
-        
-        self.labelFont = tk.Label(self.top, text="Font: ", fg=fontColor.get(), font=allButtonsFont, bg=color).pack()
+
+        tk.Label(self.top, text="Font: ", fg=fontColor.get(), font=allButtonsFont, bg=color).place(x=columnOne, y=120)
         
         aux = allButtonsFont
         allButtonsFont = StringVar() #making this string variable.
         allButtonsFont.set(aux)
         self.fontBox = Combobox(self.top, textvariable=allButtonsFont, values=custom_font_list)
-        self.fontBox.pack()
+        self.fontBox.place(x=columnOne, y=140)
         self.fontBox.bind("<<ComboboxSelected>>", customFontChange)
-        self.labelBackgroundColor = tk.Label(self.top, text="Label Background: ", fg=fontColor.get(), font=allButtonsFont.get(), bg=color).pack()
+
+        tk.Label(self.top, text="Label Background: ", fg=fontColor.get(), font=allButtonsFont.get(), bg=color).place(x=10, y=160)
         self.labelColorBox = Combobox(self.top, textvariable=labelBackground, values=custom_color_list)
-        self.labelColorBox.pack()
+        self.labelColorBox.place(x=columnOne, y=180)
         self.labelColorBox.bind("<<ComboboxSelected>>", changingLabelBackgroundColor)
-        self.FontMainColor = tk.Label(self.top, text="Font Color: ", fg=fontColor.get(), font=allButtonsFont.get(), bg=color).pack()
+
+        tk.Label(self.top, text="Font Color: ", fg=fontColor.get(), font=allButtonsFont.get(), bg=color).place(x=columnOne, y=200)
         self.FontMainColorBox = Combobox(self.top, textvariable=fontColor, values=custom_color_list)
-        self.FontMainColorBox.pack()
+        self.FontMainColorBox.place(x=columnOne, y=220)
         self.FontMainColorBox.bind("<<ComboboxSelected>>", changingFontColor)
 
-        self.useColorOnBackgroundedLabels = tk.Label(self.top, text="Color Bg Labels: ", fg=fontColor.get(), font=allButtonsFont.get(),
-                                      bg=color).pack()
+        tk.Label(self.top, text="Playing Label Transition: ", fg=fontColor.get(), font=allButtonsFont.get(), bg=color).place(x=columnOne, y=240)
+        self.FontTransitionText = StringVar()
+        self.FontTransitionText.set(play_list.playingFileNameTransition)
+        self.FontTransitionBox = Combobox(self.top, textvariable=self.FontTransitionText, values=["none", "separation", "typewriting"])
+        self.FontTransitionBox.place(x=columnOne, y=260)
+        self.FontTransitionBox.bind("<<ComboboxSelected>>", self.changeFileNameTransition)
 
+        tk.Label(self.top, text="Color Picker Result Usage: ", fg=fontColor.get(), font=allButtonsFont.get(), bg=color).place(x=columnOne, y=280)
+        self.textColorPickerUsage = StringVar()
+        self.textColorPickerUsage.set("No Usage")
+        self.ColorPickerUsage = Combobox(self.top, textvariable=self.textColorPickerUsage,
+                                         values=["No Usage", "Button&Label Color", "Label Background", "Font Color"])
+        self.ColorPickerUsage.place(x=columnOne, y=300)
+        self.ColorPickerUsage.bind("<<ComboboxSelected>>", self.useColorPicked)
+
+        self.TitleTransitionButtonText = StringVar()
+        if play_list.usePlayerTitleTransition == True:
+            self.TitleTransitionButtonText.set("Title Transition ON")
+        else:
+            self.TitleTransitionButtonText.set("Title Transition OFF")
+        self.TitleTransition = tk.Button(self.top, textvariable=self.TitleTransitionButtonText, command=self.changeTitleTransition, bg=color, fg=fontColor.get(),
+                                        font=allButtonsFont.get())
+        self.TitleTransition.place(x=columnTwo, y=80)
+
+        tk.Label(self.top, text="Color Bg Labels: ", fg=fontColor.get(), font=allButtonsFont.get(), bg=color).place(x=columnTwo, y=110)
         self.colorBgLabels = StringVar()
         self.colorBgLabels.set("False")
         self.RbFalse = tk.Radiobutton(self.top, text="False", variable=self.colorBgLabels, value=False, width=3, bg=color,
                             command=lambda: changingBackgroundedLabelsColor(self.colorBgLabels,0), fg=fontColor.get(), selectcolor="black", font=allButtonsFont.get())
         self.RbTrue = tk.Radiobutton(self.top, text="True", variable=self.colorBgLabels, value=True, width=3, bg=color,
                             command=lambda: changingBackgroundedLabelsColor(self.colorBgLabels,0), fg=fontColor.get(), selectcolor="black", font=allButtonsFont.get())
-        self.RbFalse.pack(padx=5)
-        self.RbTrue.pack(padx=5)
-        self.browseBackgroundPicture = tk.Button(self.top, text="Load Background", command=self.browse_background_picture, bg=color, fg=fontColor.get(), font=allButtonsFont.get())
-        self.browseBackgroundPicture.pack(pady=15)
+        self.RbFalse.place(x=columnTwo, y=130)
+        self.RbTrue.place(x=columnTwo, y=160)
 
-        self.startSlideshow = tk.Button(self.top, text="Start Slideshow",
-                                                 command=self.slideshowBegin, bg=color, fg=fontColor.get(),
+        self.browseBackgroundPicture = tk.Button(self.top, text="Load Background", command=self.browse_background_picture, bg=color, fg=fontColor.get(),
                                                  font=allButtonsFont.get())
-        self.startSlideshow.pack()
+        self.browseBackgroundPicture.place(x=columnTwo, y=190)
+        self.startSlideshow = tk.Button(self.top, text="Start Slideshow", command=showSlideshowWindow, bg=color, fg=fontColor.get(), font=allButtonsFont.get())
+        self.startSlideshow.place(x=columnTwo, y=220)
+
+        tk.Label(self.top, text="Window Transparency: ", fg=fontColor.get(), font=allButtonsFont.get(),
+                 bg=color).place(x=columnTwo, y=250)
+        self.WindowOpacityText = StringVar()
+        self.WindowOpacityText.set(play_list.windowOpacity)
+        self.WindowOpacityBox = Combobox(self.top, textvariable=self.WindowOpacityText,
+                                          values=["1.0", "0.9", "0.8", "0.7", "0.6", "0.5"])
+        self.WindowOpacityBox.place(x=columnTwo, y=270)
+        self.WindowOpacityBox.bind("<<ComboboxSelected>>", self.changeWindowOpacity)
+
+        tk.Label(self.top, text="Progress Time: ", fg=fontColor.get(), font=allButtonsFont.get(),
+                 bg=color).place(x=columnTwo, y=290)
+
+        self.ProgressTimeText = StringVar()
+        if play_list.progressTime == "Ascending":
+            self.ProgressTimeText.set("Playing Time")
+        else:
+            self.ProgressTimeText.set("Remaining Time")
+        self.ProgressTimeBox = Combobox(self.top, textvariable=self.ProgressTimeText,
+                                         values=["Playing Time", "Remaining Time"])
+        self.ProgressTimeBox.place(x=columnTwo, y=310)
+        self.ProgressTimeBox.bind("<<ComboboxSelected>>", self.changeProgressTime)
+
+        self.textDanthologyMode = StringVar()
+
+        if play_list.danthologyMode == True:
+            self.textDanthologyMode.set("Danthology Mode ON")
+        else:
+            self.textDanthologyMode.set("Danthology Mode OFF")
+        self.danthologyMode = tk.Button(self.top, textvariable=self.textDanthologyMode, command=self.changeDanthologyMode, bg=color, fg=fontColor.get(),
+                                        font=allButtonsFont.get())
+        self.danthologyMode.place(x=columnThree, y=80)
+        self.DanthologyInterval = StringVar()
+        self.DanthologyInterval.set(play_list.danthologyDuration)
+        tk.Label(self.top, text="Danthology Duration: ", fg=fontColor.get(), font=allButtonsFont.get(), bg=color).place(x=columnThree, y=110)
+        self.DanthologySetBox = Combobox(self.top, textvariable=self.DanthologyInterval, values=["0", "10", "30", "60", "90"])
+        self.DanthologySetBox.place(x=columnThree, y=140)
+        self.DanthologySetBox.bind("<<ComboboxSelected>>", self.changeDanthologyDuration)
+
+        tk.Label(self.top, text="Color Picker: ", fg=fontColor.get(), font=allButtonsFont.get(),
+                 bg=color).place(x=columnThree, y=160)
+
+        self.ColorPickerValue = allButtonsFont.get()
+
+        self.scaleRed = tk.Scale(self.top, from_=0, to=255, orient=tk.HORIZONTAL, fg=fontColor.get(), font=allButtonsFont.get(), bg=color)
+        self.scaleRed.place(x=columnThree, y=180)
+        self.scaleRed.bind("<ButtonRelease-1>", self.composeColor)
+
+        self.scaleGreen = tk.Scale(self.top, from_=0, to=255, orient=tk.HORIZONTAL, fg=fontColor.get(),
+                            font=allButtonsFont.get(), bg=color)
+        self.scaleGreen.place(x=columnThree, y=220)
+        self.scaleGreen.bind("<ButtonRelease-1>", self.composeColor)
+
+        self.scaleBlue = tk.Scale(self.top, from_=0, to=255, orient=tk.HORIZONTAL, fg=fontColor.get(),
+                            font=allButtonsFont.get(), bg=color)
+        self.scaleBlue.place(x=columnThree, y=260)
+        self.scaleBlue.bind("<ButtonRelease-1>", self.composeColor)
+
+        self.ColorPickerResult = tk.Label(self.top, text="     Result       ", fg=fontColor.get(), font=self.ColorPickerValue,
+                 bg=color)
+        self.ColorPickerResult.place(x=columnThree, y=310)
+        tk.Label(self.top, text="Danthology refers to resuming the next song \n"+
+                                "at the duration the current one has ended.\n" +
+                                "This feature enables easier browse among \n"+
+                                "unknown songs.", fg=fontColor.get(),
+                        font=allButtonsFont.get(), bg=color).place(x=150, y=340)
+
         self.top.bind("<Escape>", self.destroyEsc)
         self.top.bind("<Tab>", self.focus_Input)
         dialog = self
+
+    def changeProgressTime(self, event):
+        global play_list
+        if self.ProgressTimeText.get() == "Playing Time":
+            play_list.progressTime = "Ascending"
+        else:
+            play_list.progressTime = "Descending"
+
+    def useColorPicked(self, event):
+        global SkinColor
+        global labelBackground
+        global fontColor
+        if self.ColorPickerValue!="":
+            if self.textColorPickerUsage.get() == "Button&Label Color":
+                SkinColor.set(self.ColorPickerValue)
+                play_list.userCreatedColors.append(self.ColorPickerValue)
+                custom_color_list.append(self.ColorPickerValue)
+                changingBackgroundElementColor(event)
+            elif self.textColorPickerUsage.get() == "Label Background":
+                labelBackground.set(self.ColorPickerValue)
+                play_list.userCreatedColors.append(self.ColorPickerValue)
+                custom_color_list.append(self.ColorPickerValue)
+                changingLabelBackgroundColor(event)
+            elif self.textColorPickerUsage.get() == "Font Color":
+                fontColor.set(self.ColorPickerValue)
+                play_list.userCreatedColors.append(self.ColorPickerValue)
+                custom_color_list.append(self.ColorPickerValue)
+                changingFontColor(event)
+
+    def composeColor(self, event):
+        global custom_color_list
+        red = ""
+        if int(self.scaleRed.get()) >=0 and  int(self.scaleRed.get()<10):
+            red = str(hex(self.scaleRed.get()))
+            red=red.split("x")
+            red= "0" + red[1]
+        else:
+            red = str(hex(self.scaleRed.get()))
+            red = red.split("x")
+            red = red[1]
+
+        green = ""
+        if int(self.scaleGreen.get()) >= 0 and int(self.scaleGreen.get() < 10):
+            green = str(hex(self.scaleGreen.get()))
+            green = green.split("x")
+            green = "0" + green[1]
+        else:
+            green = str(hex(self.scaleGreen.get()))
+            green = green.split("x")
+            green = green[1]
+
+        blue = ""
+        if int(self.scaleBlue.get()) >= 0 and int(self.scaleBlue.get() < 10):
+            blue = str(hex(self.scaleBlue.get()))
+            blue = blue.split("x")
+            blue = "0" + blue[1]
+        else:
+            blue = str(hex(self.scaleBlue.get()))
+            blue = blue.split("x")
+            blue = blue[1]
+
+        self.ColorPickerValue = "#" + red + green + blue
+        self.ColorPickerResult["bg"] = self.ColorPickerValue
 
     def destroy(self):
         global dialog
         self.top.destroy()
         dialog = None
 
+    def changeDanthologyDuration(self, event):
+        global play_list
+        play_list.danthologyDuration = int(self.DanthologyInterval.get())
+        play_list.danthologyTimer = time.time()
+
+    def changeWindowOpacity(self,event):
+        global play_list
+        play_list.windowOpacity = float(self.WindowOpacityText.get())
+        window.attributes('-alpha', play_list.windowOpacity)
+        self.top.attributes('-alpha', play_list.windowOpacity)
+
+    def changeDanthologyMode(self):
+        global play_list
+        if play_list.danthologyMode == True:
+            play_list.danthologyMode = False
+            self.textDanthologyMode.set("Danthology Mode OFF")
+            textDanthologyMode.set("Danthology Mode: OFF")
+        else:
+            play_list.danthologyMode = True
+            self.textDanthologyMode.set("Danthology Mode ON")
+            textDanthologyMode.set("Danthology Mode: ON")
+
     def destroyEsc(self, event):
         self.destroy()
+
+    def changeTitleTransition(self):
+        global play_list
+        if play_list.usePlayerTitleTransition == True:
+            play_list.usePlayerTitleTransition = False
+            self.TitleTransitionButtonText.set("Title Transition OFF")
+            window.title("   PyPlay MP3 Player in Python     ")
+        else:
+            play_list.usePlayerTitleTransition = True
+            self.TitleTransitionButtonText.set("Title Transition ON")
 
     def focus_Input(self, event):
         if self.colorBox.focus_get():
@@ -651,13 +931,21 @@ class Customize:
         elif self.FontMainColorBox.focus_get():
             self.colorBox.focus_force()
 
+    def changeFileNameTransition(self,event):
+        global play_list
+        global visualSongNameLabel
+        play_list.playingFileNameTransition = self.FontTransitionText.get()
+        if play_list.playingFileNameTransition == "none":
+            visualSongNameLabel = play_list.validFiles[play_list.currentSongIndex].fileName
+        elif play_list.playingFileNameTransition == "typewriting":
+            visualSongNameLabel = None
+        elif play_list.playingFileNameTransition == "separation":
+            visualSongNameLabel = "_" + play_list.validFiles[play_list.currentSongIndex].fileName
+
     def take_focus(self):
         self.top.wm_attributes("-topmost", 1)
         self.top.grab_set()
         self.colorBox.focus_force()
-
-    def slideshowBegin(self):
-        Slideshow()
 
     def browse_background_picture(self):
         global play_list
@@ -686,6 +974,7 @@ class NewPlaylistDialog:
         Window_Title = "Info"
         self.top.title(Window_Title)
         self.top.geometry("450x170+100+100")
+        self.top.attributes('-alpha', play_list.windowOpacity)
         if type(allButtonsFont) == StringVar:
             allButtonsFont = allButtonsFont.get()
         self.labelInfo = tk.Label(self.top, text="One song is currently playing.\n\nDo you wish to stop, or keep it in the playlist?", \
@@ -737,9 +1026,266 @@ class NewPlaylistDialog:
         self.top.destroy()
         dialog = None
 
+class Mp3TagModifierTool: #not yet properly working
+    def __init__(self, fileIndex=0):
+        global allButtonsFont
+        global dialog
+        color = OpenFileButton["bg"]  # get the color which the rest of elements is using at the moment
+        self.top = tk.Toplevel(window, bg=color)
+        Window_Title = "Mp3TagModifier Tool"
+        columnOne=5
+        columnTwo = 150
+        columnThree = 290
+        self.Song = play_list.validFiles[fileIndex]
+        self.top.title(Window_Title)
+        self.top.geometry("500x280+100+100")
+        self.top.protocol("WM_DELETE_WINDOW", self.destroy)
+        self.top.attributes('-alpha', play_list.windowOpacity)
+        allButtonsFont = skinOptions[2][play_list.skin]
+        tk.Label(self.top, text="Name:", fg=fontColor.get(), font=allButtonsFont, bg=color).place(x=columnOne, y=5)
+        self.NameTag = tk.Entry(self.top, width=80)
+        self.NameTag.insert(0, self.Song.fileName)
+        self.NameTag.place(x=columnOne, y=25)
+        self.NameTag.bind("<Key>", self.checkUncheckArtistTitleComposal)
+        tk.Label(self.top, text="Genre:", fg=fontColor.get(), font=allButtonsFont, bg=color).place(x=columnOne, y=45)
+        self.GenreTag = tk.Entry(self.top, width=15)
+        self.GenreTag.insert(0, self.Song.Genre)
+        self.GenreTag.place(x=columnOne, y=65)
+        tk.Label(self.top, text="Year:", fg=fontColor.get(), font=allButtonsFont, bg=color).place(x=columnTwo, y=45)
+        self.YearTag = tk.Entry(self.top, width=15)
+        self.YearTag.insert(0, self.Song.Year)
+        self.YearTag.place(x=columnTwo, y=65)
+        tk.Label(self.top, text="Album:", fg=fontColor.get(), font=allButtonsFont, bg=color).place(x=columnThree, y=45)
+        self.AlbumTag = tk.Entry(self.top, width=30)
+        self.AlbumTag.insert(0, self.Song.Album)
+        self.AlbumTag.place(x=columnThree, y=65)
+        tk.Label(self.top, text="Artist:", fg=fontColor.get(), font=allButtonsFont, bg=color).place(x=columnOne, y=85)
+        self.ArtistTag = tk.Entry(self.top, width=35)
+        self.ArtistTag.insert(0, self.Song.Artist)
+        self.ArtistTag.place(x=columnOne, y=105)
+        self.ArtistTag.bind("<Key>", self.checkUncheckNameComposal)
+        tk.Label(self.top, text="Title:", fg=fontColor.get(), font=allButtonsFont, bg=color).place(x=250, y=85)
+        self.TitleTag = tk.Entry(self.top, width=35)
+        self.TitleTag.insert(0, self.Song.Title)
+        self.TitleTag.place(x=250, y=105)
+        self.TitleTag.bind("<Key>", self.checkUncheckNameComposal)
+        SaveChangesButton = tk.Button(self.top, text="Save Changes", command=self.SaveChanges, fg=fontColor.get(), font=allButtonsFont,
+                                bg=color)
+        SaveChangesButton.place(x=columnOne, y=145)
+
+        self.ComposeNameCheckButtonVar = tk.IntVar()
+        self.ComposeNameCheckButtonVar.set(0)
+        tk.Checkbutton(self.top, text="Compose filename from Artist and Title fields.", fg=fontColor.get(), font=allButtonsFont,
+                                bg=color, variable=self.ComposeNameCheckButtonVar, command=self.checkUncheckNameComposal, selectcolor="black").place(x=columnTwo, y=145)
+
+        self.ComposeArtistTitleCheckButtonVar = tk.IntVar()
+        self.ComposeArtistTitleCheckButtonVar.set(0)
+        tk.Checkbutton(self.top, text="Compose Artist and Title from filename.", fg=fontColor.get(), font=allButtonsFont,
+                       bg=color, variable=self.ComposeArtistTitleCheckButtonVar, command=self.checkUncheckArtistTitleComposal,
+                       selectcolor="black").place(x=columnTwo, y=165)
+
+        tk.Button(self.top, text="Capitalize the Name of the File", command=self.NameCapitalizer, fg=fontColor.get(), font=allButtonsFont, bg=color).place(x=columnTwo, y=195)
+
+        tk.Button(self.top, text="Capitalize the Main Words Only", command=self.CapitalizeMainWordsOnly, fg=fontColor.get(),
+                  font=allButtonsFont, bg=color).place(x=columnTwo, y=225)
+
+        tk.Button(self.top, text="Rename All Files to 'Artist - Title.mp3'", command=self.renameAllFiles, fg=fontColor.get(), font=allButtonsFont,
+                                      bg=color).place(x=columnTwo, y=255)
+        self.top.bind("<Tab>", self.focus_out)
+        self.top.bind("<Escape>", self.destroyEsc)
+        dialog = self
+
+    def NameCapitalizer(self):
+        if "-" in self.NameTag.get():
+            value = self.NameTag.get()
+            value = value.split("-")
+            artist = ""
+            title = ""
+            for word in value[0].split(" "):
+                artist += word.capitalize() + " "
+            for word in value[1].split(" "):
+                if value[1].split(" ").index(word) < len(value[1].split(" "))-1:
+                    title += word.capitalize() + " "
+                else:
+                    title += word.capitalize()
+            title = title.strip(" ")  # remove the last blank space
+            artist = artist.strip(" ")
+            if ".mp3" in title:
+                value = artist + " - " +title
+            else:
+                value = artist + " - " + title + ".mp3"
+            self.NameTag.delete(0, tk.END)
+            self.NameTag.insert(0, value)
+
+    def checkUncheckArtistTitleComposal(self, event=None):
+        self.ComposeNameCheckButtonVar.set(0)
+        if self.ComposeArtistTitleCheckButtonVar.get() == 1:
+            if self.NameTag.get() != "":
+                if "-" in self.NameTag.get():
+                    value = self.NameTag.get()
+                    value = value.split("-")
+                    self.ArtistTag.delete(0,tk.END)
+                    self.ArtistTag.insert(0, value[0].strip(" "))
+                    self.TitleTag.delete(0, tk.END)
+                    value[1] = value[1].strip(" ") #remove any whitespaces at the beginning, or end
+                    self.TitleTag.insert(0, value[1].rstrip(".mp3"))
+                else:
+                    self.ArtistTag.delete(0, tk.END)
+                    self.ArtistTag.insert(0, self.NameTag.get().rstrip(".mp3 "))
+            else:
+                messagebox.showinfo("Information", "The name should not be empty.")
+
+    def checkUncheckNameComposal(self, event=None):
+        self.ComposeArtistTitleCheckButtonVar.set(0)
+        if self.ComposeNameCheckButtonVar.get() == 1:
+            if self.ArtistTag.get() != "Various" and self.TitleTag.get() != "Various":
+                self.NameTag.delete(0,tk.END)
+                self.NameTag.insert(0, self.ArtistTag.get() + " - " + self.TitleTag.get())
+            else:
+                messagebox.showinfo("Information", "The Artist Name nor the Title should be 'Various'.")
+
+    def CapitalizeMainWordsOnly(self):
+        if "-" in self.NameTag.get():
+            value = self.NameTag.get()
+            value = value.split("-")
+            artist = ""
+            title = ""
+            value[0] = value[0].strip(" ")
+            for word in value[0].split(" "):
+                artist += word.capitalize() + " "
+            value[1] = value[1].strip(" ")
+            for word in value[1].split(" "):
+                if value[1].split(" ").index(word) == 0:
+                    title = word.capitalize() + " "
+                else:
+                    title += word.lower() + " "
+            title = title.strip(" ") #remove the last blank space
+            artist = artist.strip(" ")
+            if ".mp3" in title:
+                value = artist + " - " +title
+            else:
+                value = artist + " - " + title + ".mp3"
+            self.NameTag.delete(0, tk.END)
+            self.NameTag.insert(0, value)
+
+    def SaveChanges(self):
+        global play_list
+        pathToFile = self.Song.filePath.split(self.Song.fileName)
+        pathToFile = pathToFile[0]
+        index = play_list.validFiles.index(self.Song)
+        if ".mp3" not in self.NameTag.get():
+            value = self.NameTag.get()
+            self.NameTag = StringVar()
+            self.NameTag.set(value + ".mp3")
+        try:
+            if pygame.mixer.get_init() and index == play_list.currentSongIndex and pygame.mixer.music.get_busy(): # enter here if the file to be renamed is currently playing
+                if play_list.RESUMED:
+                    play_list.currentSongPosition = math.floor(play_list.currentSongPosition + pygame.mixer.music.get_pos() / 1000)
+                else:
+                    play_list.currentSongPosition = math.floor(pygame.mixer.music.get_pos()/1000)
+                pygame.mixer.music.stop()
+                if self.Song.filePath.lower() != (pathToFile+self.NameTag.get()).lower():
+                    shutil.copy(self.Song.filePath, pathToFile+self.NameTag.get())
+                    fileToRemove = self.Song.filePath
+                    self.Song.fileName = self.NameTag.get()  # this will update the play_list with the new song info
+                    self.Song.filePath = pathToFile + self.NameTag.get()
+                    self.saveMp3Tags()
+                    del play_list.validFiles[play_list.currentSongIndex]
+                    play_list.validFiles.insert(play_list.currentSongIndex, self.Song)
+                    displayElementsOnPlaylist()
+                    pygame.mixer.music.load(play_list.validFiles[play_list.currentSongIndex].filePath) #release the old file, to be able to remove it
+                    os.remove(fileToRemove)  # remove the old one
+                    play_music() #load the new file in the player, so that the old one gets released
+                else: #will enter here is used Capitalize Filename Option
+                    pygame.mixer.music.stop()
+                    pygame.mixer.music.load("clear.mp3") #use this file to release the playback
+                    os.rename(self.Song.filePath, pathToFile + self.NameTag.get())  # this will rename the file
+                    self.saveMp3Tags()
+                    self.Song.fileName = self.NameTag.get()  # this will update the play_list with the new song info
+                    self.Song.filePath = pathToFile + self.NameTag.get()
+                    pygame.mixer.music.load(self.Song.filePath)
+                    displayElementsOnPlaylist()
+                    play_music()
+            else:
+                os.rename(self.Song.filePath, pathToFile + self.NameTag.get()) #this will rename the file
+                self.Song.fileName = self.NameTag.get() # this will update the play_list with the new song info
+                self.Song.filePath = pathToFile + self.NameTag.get()
+                self.saveMp3Tags()
+                displayElementsOnPlaylist()
+        except Exception as Exp:
+            print("Exception during File Tag Update: " + str(Exp))
+
+    def renameAllFiles(self):
+        for song in play_list.validFiles:
+            if song.Artist != "Various" and song.Title != "Various":
+                newFileName = song.Artist + " - " + song.Title + ".mp3"
+                pathToFile = song.filePath.split(song.fileName)
+                pathToFile = pathToFile[0]
+                try:
+                    if pygame.mixer.get_init():
+                        if play_list.validFiles.index(song) == play_list.currentSongIndex and pygame.mixer.music.get_busy():  # enter here if the file to be renamed is currently playing
+                            play_list.isSongPause = True
+                            pygame.mixer.music.stop()
+                            shutil.copy(song.filePath, pathToFile + newFileName)  # make a copy of this file to the project locaiton
+                            fileToRemove = song.filePath
+                            song.fileName = newFileName  # this will update the play_list with the new song info
+                            song.filePath = pathToFile + newFileName
+                            pygame.mixer.music.load(pathToFile + song.filePath)  # load the new file in the player, so that the old one gets released
+                            os.remove(fileToRemove)  # remove the old one
+                    else:
+                        os.rename(song.filePath, pathToFile + newFileName)  # this will rename the file
+                        song.fileName = newFileName  # this will update the play_list with the new song info
+                        song.filePath = pathToFile + newFileName
+                except Exception as Exp:
+                    print("Exception during Mass Rename: " + str(Exp))
+        displayElementsOnPlaylist()
+
+    def destroy(self):
+        global dialog
+        self.top.destroy()
+        dialog = None
+
+    def destroyEsc(self,event):
+        self.destroy()
+
+    def focus_out(self, event):
+        window.wm_attributes("-topmost", 1)
+        window.grab_set()
+        window.focus_force()
+
+    def saveMp3Tags(self):
+        mp3file = EasyID3(self.Song.filePath)
+        if self.GenreTag.get() != "Various":
+            mp3file["genre"] = self.GenreTag.get()
+            self.Song.Genre = mp3file["genre"]
+            self.Song.Genre = self.Song.Genre[0]
+        if self.ArtistTag.get() != "Various":
+            mp3file["artist"] = self.ArtistTag.get()
+            self.Song.Artist = mp3file["artist"]
+            self.Song.Artist = self.Song.Artist[0]
+        if self.AlbumTag.get() != "Various":
+            mp3file["album"] = self.AlbumTag.get()
+            self.Song.Album = mp3file["album"]
+            self.Song.Album = self.Song.Album[0]
+        if self.YearTag.get() != "Various":
+            mp3file["date"] = self.YearTag.get()
+            self.Song.Year = mp3file["date"]
+            self.Song.Year = self.Song.Year[0]
+        if self.TitleTag.get() != "Various":
+            mp3file["title"] = self.TitleTag.get()
+            self.Song.Title = mp3file["title"]
+            self.Song.Title = self.Song.Title[0]
+        mp3file.save(v2_version=3)
+
+    def take_focus(self):
+        self.top.wm_attributes("-topmost", 1)
+        self.top.grab_set()
+        self.searchValue.focus_force()
+
 automaticallyBackupFile = "backup.pypl"
 allButtonsWidth = 14
 allButtonsHeight = 1
+
 custom_color_list = ["green", "yellow", "purple", "black", "brown", "sienna", "cyan", "magenta", "pink", "blue", "darkblue", "darkgreen", "deeppink", "red", \
                                             "orange", "gold", "silver", "indigo"]
 
@@ -747,13 +1293,16 @@ radioButtonsDefaultColor = "lightgray"
 
 custom_font_list = ["Arial 10", "Consolas 10", "Courier 9", "Verdana 9", "Georgia 9", "Tahoma 9", "Rockwell 10", "Fixedsys 11", "Candara 10", "Impact 9", \
                                     "Calibri 10 italic", "Modern 10 bold", "Harrington 10 bold", "Stencil 10 italic"]
-progressViewRealTime = 0.5
+progressViewRealTime = 1 #1 - for 1 second
 play_list = Playlist()
+
 listBox_Song_selected_index = None
 APPLICATION_EXIT = False
 skinOptions = [["default.gif", "minilights.gif", "road.gif", "darkg.gif", "leaves.gif", "darkblue.gif", "map.gif", "space.gif", "universe.gif"],\
                ["blue", "red", "gray", "green", "deeppink", "darkblue", "sienna", "indigo", "black", "custom"],\
                ["Consolas 10 bold", "Rockwell 10 bold", "Arial 10 italic", "Candara 10 bold", "Arial 10 bold", "Calibri 10 bold", "Harrington 10 bold", "Fixedsys 11", "Stencil 10"]]
+
+progressBarMargin = 10
 
 visualSongNameLabel = None
 
@@ -774,7 +1323,7 @@ def load_file():
                 fileSize = float("{0:.2f}".format(fileSize))
                 play_list.validFiles.append(Song(fileName, file, fileSize))
                 play_list.currentSongIndex = 0
-                textFilesToPlay.set("Files To Play: " + str(len(play_list.validFiles)))
+                textFilesToPlay.set("Files: " + str(len(play_list.validFiles)))
                 play_list.playTime += play_list.validFiles[play_list.currentSongIndex].Length
             elif ".pypl" in file:
                 loadPlaylistFile(file)
@@ -785,6 +1334,7 @@ def loadPlaylistFile(fileURL):
     global play_list
     global allButtonsFont
     global fontColor
+    global custom_color_list
     global listBox_Song_selected_index
     try:
         file = open(fileURL, "rb")
@@ -796,8 +1346,8 @@ def loadPlaylistFile(fileURL):
         if isinstance(content, Playlist):
             play_list = content
             del content
-            textFilesToPlay.set("Files To Play: " + str(len(play_list.validFiles)))
-
+            textFilesToPlay.set("Files: " + str(len(play_list.validFiles)))
+            custom_color_list += play_list.userCreatedColors
             #the following lines will help keeping the predefined values of last skin used in case not all fields were customized
             allButtonsFont = skinOptions[2][play_list.skin]
             changeFonts()  # change the font that comes with the new skin
@@ -844,7 +1394,11 @@ def loadPlaylistFile(fileURL):
             if play_list.currentSongIndex != None and len(play_list.validFiles) > 0:
                 SongName.set("Paused: " + play_list.validFiles[play_list.currentSongIndex].fileName)
                 SongSize.set("Size: " + str(play_list.validFiles[play_list.currentSongIndex].fileSize) + " MB")
-                SongDuration.set("Progress: " + str(int(play_list.currentSongPosition)) + " s")
+                if play_list.progressTime == "Ascending":
+                    SongDuration.set("Time Elapsed: {:0>8}".format(str(datetime.timedelta(seconds=play_list.currentSongPosition))))
+                else:
+                    SongLength = int(play_list.validFiles[play_list.currentSongIndex].Length - play_list.currentSongPosition)
+                    SongDuration.set("Time Left: {:0>8}".format(str(datetime.timedelta(seconds=SongLength))))
                 #Update Length
                 songLength = float("{0:.0f}".format(play_list.validFiles[play_list.currentSongIndex].Length))  # no decimals needed
                 textLength.set("Length: {:0>8}".format(str(datetime.timedelta(seconds=songLength))))
@@ -857,7 +1411,11 @@ def loadPlaylistFile(fileURL):
                 textFadeOut.set("FadeOut: " + str(play_list.validFiles[play_list.currentSongIndex].fadeout_duration) +"s")
                 mode = "Stereo" if play_list.validFiles[play_list.currentSongIndex].channels == 2 else "Mono"
                 textMonoStereoMode.set("Mode: " + mode)
+                textNofPlays.set("No. of Plays: " + str(play_list.validFiles[play_list.currentSongIndex].NumberOfPlays))
+                textSampleRate.set("Sample Rate: " + str(play_list.validFiles[play_list.currentSongIndex].sample_rate))
                 textTotalPlayTime.set("Total PlayTime: {:0>8}" .format(str(datetime.timedelta(seconds=int(play_list.playTime)))))
+                danMode = "ON" if play_list.danthologyMode == True else "OFF"
+                textDanthologyMode.set("Danthology Mode: " + danMode)
                 #Select current song, and make it visible
                 listbox.selection_clear(0, tk.END)
                 listbox.select_set(play_list.currentSongIndex)
@@ -865,6 +1423,7 @@ def loadPlaylistFile(fileURL):
                 listBox_Song_selected_index = play_list.currentSongIndex
                 updateRadioButtons()
             updateSortButton()
+            window.attributes('-alpha', play_list.windowOpacity) #set the opacity
             view_playlist(True)
             if play_list.SHUFFLE:
                 ShuffleButtonText.set("Shuffle On")
@@ -891,10 +1450,11 @@ def load_directory():
         listbox.select_set(play_list.currentSongIndex)
         listbox.see(play_list.currentSongIndex)
         listBox_Song_selected_index = play_list.currentSongIndex
-        textFilesToPlay.set("Files To Play: " + str(len(play_list.validFiles)))
+        textFilesToPlay.set("Files: " + str(len(play_list.validFiles)))
         displayElementsOnPlaylist()
 
 def searchFilesInDirectories(dir):
+    global play_list
     for root, dirs, files in os.walk(dir):
         for file in files:
             if ".mp3" in file:
@@ -905,11 +1465,18 @@ def searchFilesInDirectories(dir):
                 play_list.playTime += song.Length
 
 def play_music():
+    global play_list
     global visualSongNameLabel
     if len(play_list.validFiles) > 0 and play_list.currentSongIndex!=None:
         try:
-            pygame.init()
-            pygame.mixer.init(play_list.validFiles[play_list.currentSongIndex].sample_rate, -16, play_list.validFiles[play_list.currentSongIndex].channels, 1024*32) #standard values for stereo
+            s_rate = play_list.validFiles[play_list.currentSongIndex].sample_rate
+            channels = play_list.validFiles[play_list.currentSongIndex].channels
+            if pygame.mixer.get_init():
+                pygame.mixer.quit() # quit it, to make sure it is reinintialized
+                pygame.mixer.pre_init(frequency=s_rate, size=-16, channels=channels, buffer=4096)
+            else:
+                pygame.mixer.pre_init(frequency=s_rate, size=-16, channels=channels, buffer=4096)
+            pygame.mixer.init()
             if play_list.validFiles[play_list.currentSongIndex].fadein_duration == 0:
                 pygame.mixer.music.set_volume(play_list.VolumeLevel)
             else: # enter here if song uses fadein
@@ -923,7 +1490,9 @@ def play_music():
                 listbox.selection_clear(0, tk.END)  # clear existing selection
                 listbox.select_set(play_list.currentSongIndex)
             elif listBox_Song_selected_index == play_list.currentSongIndex and type(dialog) == SearchTool:
-                play_list.currentSongPosition=0
+                if play_list.danthologyMode == False:
+                    play_list.currentSongPosition=0
+                #otheriwse keep the currentSongPosition from the previous one.
             pygame.mixer.music.load(play_list.validFiles[play_list.currentSongIndex].filePath)
             pygame.mixer.music.play()
             PausedButtonText.set("Pause")
@@ -934,9 +1503,13 @@ def play_music():
             elif play_list.validFiles[play_list.currentSongIndex].startPos > 0:
                 start_pos = play_list.validFiles[play_list.currentSongIndex].startPos
                 if play_list.currentSongPosition == 0:
-                    play_list.currentSongPosition = start_pos
+                    if play_list.danthologyMode == False:
+                        play_list.currentSongPosition = start_pos
+                    # otheriwse keep the currentSongPosition from the previous one.
                 pygame.mixer.music.set_pos(start_pos)
                 play_list.RESUMED = True
+            if play_list.danthologyDuration > 0 and play_list.danthologyMode:
+                play_list.danthologyTimer = time.time()
         except Exception as e:
             print("Play Music Function: " + str(e))
         else:
@@ -953,10 +1526,18 @@ def play_music():
             textFadeOut.set("FadeOut: " + str(play_list.validFiles[play_list.currentSongIndex].fadeout_duration) +"s")
             mode = "Stereo" if play_list.validFiles[play_list.currentSongIndex].channels == 2 else "Mono"
             textMonoStereoMode.set("Mode: " + mode)
+            textSampleRate.set("Sample Rate: " + str(play_list.validFiles[play_list.currentSongIndex].sample_rate))
             progress["maximum"] = play_list.validFiles[play_list.currentSongIndex].Length
             songRating.set(str(play_list.validFiles[play_list.currentSongIndex].Rating))
+            if play_list.playingFileNameTransition == "none":
+                visualSongNameLabel = play_list.validFiles[play_list.currentSongIndex].fileName
+            elif play_list.playingFileNameTransition == "typewriting":
+                visualSongNameLabel = None
+            elif play_list.playingFileNameTransition == "separation":
+                visualSongNameLabel = "_" + play_list.validFiles[play_list.currentSongIndex].fileName
             updateRadioButtons()
-            visualSongNameLabel = "_"+play_list.validFiles[play_list.currentSongIndex].fileName
+            play_list.validFiles[play_list.currentSongIndex].NumberOfPlays+=1
+            textNofPlays.set("No. of Plays: " + str(play_list.validFiles[play_list.currentSongIndex].NumberOfPlays))
             try:
                 scheduler.enter(progressViewRealTime, 1, viewProgress)
                 scheduler.run()
@@ -989,23 +1570,39 @@ def pause_music():
             print("Pause Music Function: " + str(e))
 
 def stop_music():
+    global play_list
     if pygame.mixer.get_init():
         try:
             if pygame.mixer.music.get_busy():
                 pygame.mixer.music.stop()
                 SongName.set("Playing: ")
-                SongDuration.set("Progress: ")
+                if play_list.progressTime == "Ascending":
+                    SongDuration.set("Time Elapsed: ")
+                else:
+                    SongDuration.set("Time Left: ")
                 SongSize.set("Size: ")
                 play_list.isSongStopped = True
-                play_list.currentSongPosition=0
+                if play_list.danthologyMode == False:
+                    play_list.currentSongPosition=0
                 play_list.RESUMED = False
                 PausedButtonText.set("Pause")
                 play_list.isSongPause = False
         except Exception as e:
             print("Stop Music Function: " +str(e))
 
+def handleDanthology():
+    global play_list
+    if play_list.currentSongPosition >= play_list.validFiles[play_list.currentSongIndex].Length:
+        play_list.currentSongPosition =0
+    else:
+        if play_list.RESUMED:
+            play_list.currentSongPosition = math.floor(play_list.currentSongPosition + pygame.mixer.music.get_pos() / 1000)
+        else:
+            play_list.RESUMED = True
+
 def next_song():
     global listBox_Song_selected_index
+    global play_list
     if len(play_list.validFiles) > 0 and play_list.currentSongIndex!=None:
         if (play_list.SHUFFLE==False):
             try:
@@ -1022,11 +1619,15 @@ def next_song():
         # Maintain the selection in the listbox
         listbox.selection_clear(0, tk.END)  # clear existing selection
         listbox.select_set(listBox_Song_selected_index)
-        play_list.currentSongPosition=0
+        if play_list.danthologyMode == False:
+            play_list.currentSongPosition=0
+        else:
+            handleDanthology()
         play_music()
 
 def previous_song():
     global listBox_Song_selected_index
+    global play_list
     if len(play_list.validFiles) > 0 and play_list.currentSongIndex!=None:
         if(play_list.SHUFFLE==False):
             try:
@@ -1043,45 +1644,68 @@ def previous_song():
         # Maintain the selection in the listbox
         listbox.selection_clear(0, tk.END)# clear existing selection
         listbox.select_set(listBox_Song_selected_index)
-        play_list.currentSongPosition = 0
+        if play_list.danthologyMode == False:
+            play_list.currentSongPosition = 0
+        else:
+            handleDanthology()
         play_music()
+
+def addFontTransitions():
+    global visualSongNameLabel
+    global Project_Title
+    if play_list.usePlayerTitleTransition:
+        Project_Title = fontTitleTransition(Project_Title)
+        window.title(Project_Title)  # add animation to font when playing music
+    if play_list.playingFileNameTransition == "typewriting":
+        fontTypeWritingTransition()
+    elif play_list.playingFileNameTransition == "separation":
+        visualSongNameLabel = fontSeparatedTransition(visualSongNameLabel)
+    SongName.set("Playing: " + visualSongNameLabel)
 
 def viewProgress():
     global play_list
     global progress
-    global Project_Title
-    global visualSongNameLabel
     if play_list.usingSlideShow == True:
         Slideshow.countSeconds()
     if APPLICATION_EXIT == False:
         if pygame.mixer.music.get_busy() and play_list.isSongPause == False:
-            Project_Title = fontTransition(Project_Title)
-            window.title(Project_Title) #add animation to font when playing music
-            if visualSongNameLabel != None:
-                visualSongNameLabel = fontMovingTransition(visualSongNameLabel)
-                SongName.set("Playing: " + visualSongNameLabel)
+            addFontTransitions()
             if play_list.RESUMED:
-                local_position = play_list.currentSongPosition + (pygame.mixer.music.get_pos() / 1000)
-                local_positionDisplay = float("{0:.0f}".format(local_position)) #no decimals needed
-                SongDuration.set("Progress: {:0>8}" .format(str(datetime.timedelta(seconds=local_positionDisplay))))
+                local_position = math.floor(play_list.currentSongPosition + pygame.mixer.music.get_pos() / 1000)
+                if play_list.progressTime == "Ascending":
+                    SongDuration.set("Time Elapsed: {:0>8}".format(str(datetime.timedelta(seconds=local_position))))
+                else:
+                    SongLength = int(play_list.validFiles[play_list.currentSongIndex].Length - local_position)
+                    SongDuration.set("Time Left: {:0>8}".format(str(datetime.timedelta(seconds=SongLength))))
                 progress["value"] = local_position
                 if play_list.validFiles[play_list.currentSongIndex].fadein_duration > 0:
                     fadein(local_position - play_list.validFiles[play_list.currentSongIndex].startPos)
                 if play_list.validFiles[play_list.currentSongIndex].fadeout_duration > 0:
                     fadeout(play_list.validFiles[play_list.currentSongIndex].endPos - local_position)
+                if play_list.danthologyMode and play_list.danthologyDuration>0:
+                    if time.time() - play_list.danthologyTimer >  play_list.danthologyDuration:
+                        #Danthology
+                        next_song()
                 if local_position >= play_list.validFiles[play_list.currentSongIndex].endPos:
                     stop_music()
                     play_list.isSongStopped = False #song is not stopped in this circumstances, song has finished
 
             else:
-                play_list.currentSongPosition = (pygame.mixer.music.get_pos()/1000)
-                local_positionDisplay = float("{0:.0f}".format(play_list.currentSongPosition))#no decimals needed
-                SongDuration.set("Progress: {:0>8}" .format(str(datetime.timedelta(seconds=local_positionDisplay))))
+                play_list.currentSongPosition = math.floor(pygame.mixer.music.get_pos()/1000)
+                if play_list.progressTime == "Ascending":
+                    SongDuration.set("Time Elapsed: {:0>8}".format(str(datetime.timedelta(seconds=play_list.currentSongPosition))))
+                else:
+                    SongLength = int(play_list.validFiles[play_list.currentSongIndex].Length - play_list.currentSongPosition)
+                    SongDuration.set("Time Left: {:0>8}".format(str(datetime.timedelta(seconds=SongLength))))
                 progress["value"] = play_list.currentSongPosition
                 if play_list.validFiles[play_list.currentSongIndex].fadein_duration > 0:
                     fadein(play_list.currentSongPosition - play_list.validFiles[play_list.currentSongIndex].startPos)
                 if play_list.validFiles[play_list.currentSongIndex].fadeout_duration > 0:
                     fadeout(play_list.validFiles[play_list.currentSongIndex].endPos - play_list.currentSongPosition)
+                if play_list.danthologyMode and play_list.danthologyDuration > 0:
+                    if time.time() - play_list.danthologyTimer >  play_list.danthologyDuration:
+                        #Danthology
+                        next_song()
                 if len(play_list.validFiles) > 0:
                     if play_list.currentSongPosition >= play_list.validFiles[play_list.currentSongIndex].endPos:
                         stop_music()
@@ -1142,10 +1766,11 @@ def shuffle():
 def shuffling_playlist():
     global play_list
     if len(play_list.validFiles)>1:
-        rand = random.randint(0, len(play_list.validFiles))
+        rand = random.randint(0, len(play_list.validFiles)-1) #endpoints included
         play_list.currentSongIndex = rand
 
 def save_playlist():
+    global play_list
     window.filename = filedialog.asksaveasfilename(initialdir="/", title="Select file",
                                                  filetypes=(("pypl files", "*.pypl"), ("all files", "*.*")))
     if window.filename:
@@ -1157,18 +1782,27 @@ def save_playlist():
         pickle.dump(play_list, file)
 
 def clearLabels():
-    textFilesToPlay.set("Files To Play: " + str(len(play_list.validFiles)))
+    textFilesToPlay.set("Files: " + str(len(play_list.validFiles)))
     textVolumeLevel.set("Volume Level: " + str(int(play_list.VolumeLevel * 100)) + "%")
     textGenre.set("Genre: ")
     textFadeIn.set("FadeIn: ")
     textMonoStereoMode.set("Mode: ")
+    textNofPlays.set("No. of Plays: ")
+    danMode = "OFF" if play_list.danthologyMode==False else "ON"
+    textDanthologyMode.set("Danthology Mode: " + danMode)
+    textSampleRate.set("Sample Rate: ")
     textEndTime.set("End Time: ")
     textStartTime.set("Start Time")
     textLength.set("Length: ")
-    SongDuration.set("Progress: ")
+    if play_list.progressTime == "Ascending":
+        SongDuration.set("Time Elapsed: ")
+    else:
+        SongDuration.set("Time Left: ")
 
 def new_playlist():
     global play_list
+    if dialog != None:
+        dialog.destroy()
     if pygame.mixer.get_init():
         if pygame.mixer.music.get_busy():
             NewPlaylistDialog(window)
@@ -1208,13 +1842,39 @@ def elementPlaylistDoubleClicked(event):
 def updateSortButton():
     # 0-onrating, 1-sorted, 2-reversed, 3-random
     if play_list.isListOrdered == 0:
-        SortButtonText.set("OnRating")
+        SortButtonText.set("By Rating")
     elif play_list.isListOrdered == 1:
-        SortButtonText.set("Sorted")
+        SortButtonText.set("By Name")
     elif play_list.isListOrdered == 2:
-        SortButtonText.set("Reversed")
+        SortButtonText.set("Name Reversed")
     elif play_list.isListOrdered == 3:
         SortButtonText.set("Random")
+    elif play_list.isListOrdered == 4:
+        SortButtonText.set("Rating Reversed")
+    elif play_list.isListOrdered == 5:
+        SortButtonText.set("By Length")
+    elif play_list.isListOrdered == 6:
+        SortButtonText.set("Length Reversed")
+    elif play_list.isListOrdered == 7:
+        SortButtonText.set("By Genre")
+    elif play_list.isListOrdered == 8:
+        SortButtonText.set("Genre Reversed")
+    elif play_list.isListOrdered == 9:
+        SortButtonText.set("By Plays")
+    elif play_list.isListOrdered == 10:
+        SortButtonText.set("Plays Reversed")
+    elif play_list.isListOrdered == 11:
+        SortButtonText.set("By Year")
+    elif play_list.isListOrdered == 12:
+        SortButtonText.set("Year Reversed")
+    elif play_list.isListOrdered == 13:
+        SortButtonText.set("By Album")
+    elif play_list.isListOrdered == 14:
+        SortButtonText.set("Album Reversed")
+    elif play_list.isListOrdered == 15:
+        SortButtonText.set("By Title")
+    elif play_list.isListOrdered == 16:
+        SortButtonText.set("Title Reversed")
 
 def displayElementsOnPlaylist():
     global listbox
@@ -1224,6 +1884,7 @@ def displayElementsOnPlaylist():
     textTotalPlayTime.set("Total PlayTime: {:0>8}" .format(str(datetime.timedelta(seconds=int(play_list.playTime)))))
 
 def changingBackgroundElementColor(event):
+    global play_list
     #changing buttons
     OpenFileButton["bg"]=SkinColor.get()
     OpenDirectoryButton["bg"]=SkinColor.get()
@@ -1269,6 +1930,9 @@ def changingBackgroundElementColor(event):
     labelFadeIn["fg"]=SkinColor.get()
     labelFadeOut["fg"]=SkinColor.get()
     labelMonoStereoMode["fg"]=SkinColor.get()
+    labelSampleRate["fg"]=SkinColor.get()
+    labelNofPlays["fg"]=SkinColor.get()
+    labelDanthologyMode["fg"]=SkinColor.get()
     if type(dialog) == Customize: #if entered here means setting a custom color
         play_list.customElementBackground = custom_color_list.index(SkinColor.get())
         dialog.destroy()
@@ -1293,10 +1957,7 @@ def changeSkin(event):
     global allButtonsFont
     global labelBackground
     if SkinColor.get() == "custom":
-        if dialog == None:
-            Customize(window)
-        else:
-            messagebox.showinfo("Information", "Please close the other component window before proceed.")
+        showCustomizeWindow()
     else:
         changingBackgroundElementColor(event)
         #changing background
@@ -1338,6 +1999,9 @@ def changeSkin(event):
             elif type(dialog) == NewPlaylistDialog:
                     dialog.destroy()
                     NewPlaylistDialog(window)
+            elif type(dialog) == Mp3TagModifierTool:
+                    dialog.destroy()
+                    Mp3TagModifierTool()
         elif Slideshow.top != None:
             #destroy it
             Slideshow.top.destroy()
@@ -1387,10 +2051,11 @@ def randomize():
         updateSortButton() #put the correct message on the Sort Button
 
 def navigationSound(event):
+    global play_list
     if len(play_list.validFiles) > 0 and play_list.currentSongIndex!= None:
         e = event.widget
         x = play_list.validFiles[play_list.currentSongIndex].Length / 470
-        play_list.currentSongPosition = (event.x * x)
+        play_list.currentSongPosition = ((event.x - progressBarMargin) * x)
         pygame.mixer.music.rewind()
         pygame.mixer.music.set_pos(play_list.currentSongPosition)
         progress["value"] = play_list.currentSongPosition
@@ -1398,6 +2063,7 @@ def navigationSound(event):
 
 def on_closing(): #this function is called only when window is canceled
     global APPLICATION_EXIT
+    global play_list
     APPLICATION_EXIT = True
     # Make a backup of everything:
     if(len(play_list.validFiles) == 0):
@@ -1406,7 +2072,8 @@ def on_closing(): #this function is called only when window is canceled
         play_list.isSongStopped = False
         play_list.isListOrdered = 0  # 0-onrating ; 1-sorted 2-reversed; 3-random;
         play_list.currentSongIndex = None
-        play_list.currentSongPosition = 0
+        if play_list.danthologyMode == False:
+            play_list.currentSongPosition = 0
         play_list.RESUMED = False
     file = open(automaticallyBackupFile, "wb")
     pickle.dump(play_list, file)
@@ -1415,11 +2082,11 @@ def on_closing(): #this function is called only when window is canceled
 
 def remove_song():
     global listBox_Song_selected_index
-    if len(play_list.validFiles)>0:
-        if listBox_Song_selected_index!=None:
+    if listBox_Song_selected_index!=None:
+        if listBox_Song_selected_index < len(play_list.validFiles):
             del play_list.validFiles[listBox_Song_selected_index]
             displayElementsOnPlaylist()
-            textFilesToPlay.set("Files To Play: " + str(len(play_list.validFiles)))
+            textFilesToPlay.set("Files: " + str(len(play_list.validFiles)))
             #listBox_Song_selected_index=None #initialize this if u want to remove only onebyone
             # Maintain the selection
             listbox.select_set(listBox_Song_selected_index)
@@ -1445,28 +2112,194 @@ def list_selected_item(event):
         #play_list.currentSongIndex = index # if uncomment this when a song is selected and the playlist and hit PLAY
         #the song will maintain the same currentSongPosition value as the previous one.
 
+def sortByFileName():
+    global play_list
+    Song = play_list.validFiles[play_list.currentSongIndex]
+    play_list.isListOrdered = 1
+    play_list.validFiles.sort(key=lambda Song: Song.fileName)  # sort the list according to fileName
+    play_list.currentSongIndex = play_list.validFiles.index(Song)
+    displayElementsOnPlaylist()
+    updateSortButton()
+
+def sortByFileNameReversed():
+    global play_list
+    Song = play_list.validFiles[play_list.currentSongIndex]
+    play_list.isListOrdered = 2
+    play_list.validFiles.sort(key=lambda Song: Song.fileName)  # sort the list according to fileName
+    play_list.validFiles.reverse()
+    play_list.currentSongIndex = play_list.validFiles.index(Song)
+    displayElementsOnPlaylist()
+    updateSortButton()
+
+def sortRandomized():
+    global play_list
+    Song = play_list.validFiles[play_list.currentSongIndex]
+    play_list.isListOrdered = 3
+    randomize() #let them be randomized
+    play_list.currentSongIndex = play_list.validFiles.index(Song)
+    displayElementsOnPlaylist()
+    updateSortButton()
+
+def sortByRating():
+    global play_list
+    Song = play_list.validFiles[play_list.currentSongIndex]
+    play_list.isListOrdered = 0
+    play_list.validFiles.sort(key=lambda Song: Song.Rating, reverse=True)  # sort the list according to Rating
+    play_list.currentSongIndex = play_list.validFiles.index(Song)
+    displayElementsOnPlaylist()
+    updateSortButton()
+
+def sortByRatingReversed():
+    global play_list
+    Song = play_list.validFiles[play_list.currentSongIndex]
+    play_list.isListOrdered = 4
+    play_list.validFiles.sort(key=lambda Song: Song.Rating, reverse=True)  # sort the list according to Rating
+    play_list.validFiles.reverse()
+    play_list.currentSongIndex = play_list.validFiles.index(Song)
+    displayElementsOnPlaylist()
+    updateSortButton()
+
+def sortByLength():
+    global play_list
+    Song = play_list.validFiles[play_list.currentSongIndex]
+    play_list.isListOrdered = 5
+    play_list.validFiles.sort(key=lambda Song: Song.Length)  # sort the list according to fileName
+    play_list.currentSongIndex = play_list.validFiles.index(Song)
+    displayElementsOnPlaylist()
+    updateSortButton()
+
+def sortByLengthReversed():
+    global play_list
+    Song = play_list.validFiles[play_list.currentSongIndex]
+    play_list.isListOrdered = 6
+    play_list.validFiles.sort(key=lambda Song: Song.Length)  # sort the list according to fileName
+    play_list.validFiles.reverse()
+    play_list.currentSongIndex = play_list.validFiles.index(Song)
+    displayElementsOnPlaylist()
+    updateSortButton()
+
+def sortByGenre():
+    global play_list
+    Song = play_list.validFiles[play_list.currentSongIndex]
+    play_list.isListOrdered = 7
+    play_list.validFiles.sort(key=lambda Song: Song.Genre)  # sort the list according to fileName
+    play_list.currentSongIndex = play_list.validFiles.index(Song)
+    displayElementsOnPlaylist()
+    updateSortButton()
+
+def sortByGenreReversed():
+    global play_list
+    Song = play_list.validFiles[play_list.currentSongIndex]
+    play_list.isListOrdered = 8
+    play_list.validFiles.sort(key=lambda Song: Song.Genre)  # sort the list according to fileName
+    play_list.validFiles.reverse()
+    play_list.currentSongIndex = play_list.validFiles.index(Song)
+    displayElementsOnPlaylist()
+    updateSortButton()
+
+def sortByNoOfPlays():
+    global play_list
+    Song = play_list.validFiles[play_list.currentSongIndex]
+    play_list.isListOrdered = 9
+    play_list.validFiles.sort(key=lambda Song: Song.NumberOfPlays)  # sort the list according to fileName
+    play_list.currentSongIndex = play_list.validFiles.index(Song)
+    displayElementsOnPlaylist()
+    updateSortButton()
+
+def sortByNoOfPlaysReversed():
+    global play_list
+    Song = play_list.validFiles[play_list.currentSongIndex]
+    play_list.isListOrdered = 10
+    play_list.validFiles.sort(key=lambda Song: Song.NumberOfPlays)  # sort the list according to fileName
+    play_list.validFiles.reverse()
+    play_list.currentSongIndex = play_list.validFiles.index(Song)
+    displayElementsOnPlaylist()
+    updateSortButton()
+
+def sortByYear():
+    global play_list
+    Song = play_list.validFiles[play_list.currentSongIndex]
+    play_list.isListOrdered = 11
+    play_list.validFiles.sort(key=lambda Song: Song.Year)  # sort the list according to fileName
+    play_list.currentSongIndex = play_list.validFiles.index(Song)
+    displayElementsOnPlaylist()
+    updateSortButton()
+
+def sortByYearReversed():
+    global play_list
+    Song = play_list.validFiles[play_list.currentSongIndex]
+    play_list.isListOrdered = 12
+    play_list.validFiles.sort(key=lambda Song: Song.Year)  # sort the list according to fileName
+    play_list.validFiles.reverse()
+    play_list.currentSongIndex = play_list.validFiles.index(Song)
+    displayElementsOnPlaylist()
+    updateSortButton()
+
+def sortByAlbum():
+    global play_list
+    Song = play_list.validFiles[play_list.currentSongIndex]
+    play_list.isListOrdered = 13
+    play_list.validFiles.sort(key=lambda Song: Song.Album)  # sort the list according to fileName
+    play_list.currentSongIndex = play_list.validFiles.index(Song)
+    displayElementsOnPlaylist()
+    updateSortButton()
+
+def sortByAlbumReversed():
+    global play_list
+    Song = play_list.validFiles[play_list.currentSongIndex]
+    play_list.isListOrdered = 14
+    play_list.validFiles.sort(key=lambda Song: Song.Album)  # sort the list according to fileName
+    play_list.validFiles.reverse()
+    play_list.currentSongIndex = play_list.validFiles.index(Song)
+    displayElementsOnPlaylist()
+    updateSortButton()
+
+def sortByTitle():
+    global play_list
+    Song = play_list.validFiles[play_list.currentSongIndex]
+    play_list.isListOrdered = 15
+    play_list.validFiles.sort(key=lambda Song: Song.Title)  # sort the list according to fileName
+    play_list.currentSongIndex = play_list.validFiles.index(Song)
+    displayElementsOnPlaylist()
+    updateSortButton()
+
+def sortByTitleReversed():
+    global play_list
+    Song = play_list.validFiles[play_list.currentSongIndex]
+    play_list.isListOrdered = 16
+    play_list.validFiles.sort(key=lambda Song: Song.Title)  # sort the list according to fileName
+    play_list.validFiles.reverse()
+    play_list.currentSongIndex = play_list.validFiles.index(Song)
+    displayElementsOnPlaylist()
+    updateSortButton()
+
 def sort_list():
     # 0-onrating, 1-sorted, 2-reversed, 3-random
-    if len(play_list.validFiles) > 0 and play_list.currentSongIndex!=None:
-        Song = play_list.validFiles[play_list.currentSongIndex]
-        if play_list.isListOrdered == 0:
-            play_list.isListOrdered = 1
-            play_list.validFiles.sort(key=lambda Song: Song.fileName)  # sort the list according to fileName
-        elif play_list.isListOrdered == 1:
-            play_list.isListOrdered = 2
-            play_list.validFiles.reverse()
-        elif play_list.isListOrdered == 2:
-            play_list.isListOrdered = 3
-            randomize() #let them be randomized
-        else:
-            play_list.isListOrdered = 0
-            play_list.validFiles.sort(key=lambda Song: Song.Rating, reverse=True)  # sort the list according to Rating
-        #the currentSongIndex has changed
-        play_list.currentSongIndex = play_list.validFiles.index(Song)
-        updateSortButton()
-        displayElementsOnPlaylist()
+    global play_list
+    aMenu = tk.Menu(window, tearoff=0)
+    aMenu.add_command(label='Sort By Name', command=sortByFileName)
+    aMenu.add_command(label='Sort By Name Reversed', command=sortByFileNameReversed)
+    aMenu.add_command(label='Sort Randomize', command=sortRandomized)
+    aMenu.add_command(label='Sort By Rating', command=sortByRating)
+    aMenu.add_command(label='Sort By Rating Reversed', command=sortByRatingReversed)
+    aMenu.add_command(label='Sort By Length', command=sortByLength)
+    aMenu.add_command(label='Sort By Length Reversed', command=sortByLengthReversed)
+    aMenu.add_command(label='Sort By Genre', command=sortByGenre)
+    aMenu.add_command(label='Sort By Genre Reversed', command=sortByGenreReversed)
+    aMenu.add_command(label='Sort By No. Of Plays', command=sortByNoOfPlays)
+    aMenu.add_command(label='Sort By No. Of Plays Reversed', command=sortByNoOfPlaysReversed)
+    aMenu.add_command(label='Sort By Year', command=sortByYear)
+    aMenu.add_command(label='Sort By Year Reversed', command=sortByYearReversed)
+    aMenu.add_command(label='Sort By Album', command=sortByAlbum)
+    aMenu.add_command(label='Sort By Album Reversed', command=sortByAlbumReversed)
+    aMenu.add_command(label='Sort By Title', command=sortByTitle)
+    aMenu.add_command(label='Sort By Title Reversed', command=sortByTitleReversed)
+    x = 770
+    y = 650
+    aMenu.post(x, y)
 
 def UpdateSongRating():
+    global play_list
     if len(play_list.validFiles) > 0 and play_list.currentSongIndex:
         if pygame.mixer.get_init() != None:
             if pygame.mixer.music.get_busy() or play_list.isSongPause:
@@ -1554,65 +2387,6 @@ def updateRadioButtons():
     if len(play_list.validFiles) > 0 and play_list.currentSongIndex!=None:
         songRating.set(str(play_list.validFiles[play_list.currentSongIndex].Rating))
 
-def changingLabelBackgroundColor(event):
-    global play_list;
-    # changing labels
-    labelPlaying["background"] = labelBackground.get()
-    labelDuration["background"] = labelBackground.get()
-    labelSize["background"] = labelBackground.get()
-    labelVolumeLevel["background"] = labelBackground.get()
-    labelFilesToPlay["background"] = labelBackground.get()
-    labelLength["background"] = labelBackground.get()
-    labelGenre["background"] = labelBackground.get()
-    labelStartTime["background"] = labelBackground.get()
-    labelEndTime["background"] = labelBackground.get()
-    labelTotalPlayTime["background"] = labelBackground.get()
-    labelFallAsleep["background"] = labelBackground.get()
-    labelWakeUp["background"] = labelBackground.get()
-    labelFadeIn["background"] = labelBackground.get()
-    labelFadeOut["background"] = labelBackground.get()
-    labelMonoStereoMode["background"] = labelBackground.get()
-    if labelBackground.get() != "lightgray": #lightgray is the default color, if condition is true, means user cutomized it
-        play_list.customLabelBackground = custom_color_list.index(labelBackground.get())
-
-def changingBackgroundedLabelsColor(value, loading=1):
-    global play_list
-    if loading!=1:
-        play_list.customChangeBackgroundedLabelsColor = int(value.get())
-    if play_list.customChangeBackgroundedLabelsColor == True:
-        labelPlaying["fg"] = fontColor.get()
-        labelDuration["fg"] = fontColor.get()
-        labelSize["fg"] = fontColor.get()
-        labelVolumeLevel["fg"] = fontColor.get()
-        labelFilesToPlay["fg"] = fontColor.get()
-        labelLength["fg"] = fontColor.get()
-        labelGenre["fg"] = fontColor.get()
-        labelStartTime["fg"] = fontColor.get()
-        labelEndTime["fg"] = fontColor.get()
-        labelTotalPlayTime["fg"] = fontColor.get()
-        labelFallAsleep["fg"] = fontColor.get()
-        labelWakeUp["fg"] = fontColor.get()
-        labelFadeOut["fg"] = fontColor.get()
-        labelFadeIn["fg"] = fontColor.get()
-        labelMonoStereoMode["fg"] = fontColor.get()
-    else:
-        color = OpenFileButton["bg"] #put the same color as button background
-        labelPlaying["fg"] = color
-        labelDuration["fg"] = color
-        labelSize["fg"] = color
-        labelVolumeLevel["fg"] = color
-        labelFilesToPlay["fg"] = color
-        labelLength["fg"] = color
-        labelGenre["fg"] = color
-        labelStartTime["fg"] = color
-        labelEndTime["fg"] = color
-        labelTotalPlayTime["fg"] = color
-        labelFallAsleep["fg"] = color
-        labelWakeUp["fg"] = color
-        labelFadeOut["fg"] = color
-        labelFadeIn["fg"] = color
-        labelMonoStereoMode["fg"] = color
-
 def changingFontColor(event):
     global play_list
     OpenFileButton["fg"] = fontColor.get()
@@ -1645,6 +2419,74 @@ def changingFontColor(event):
     if type(dialog) == Customize: # this condition is true only when Customize window is opened
         dialog.destroy()
         Customize(window)
+
+def changingLabelBackgroundColor(event):
+    global play_list;
+    # changing labels
+    labelPlaying["background"] = labelBackground.get()
+    labelDuration["background"] = labelBackground.get()
+    labelSize["background"] = labelBackground.get()
+    labelVolumeLevel["background"] = labelBackground.get()
+    labelFilesToPlay["background"] = labelBackground.get()
+    labelLength["background"] = labelBackground.get()
+    labelGenre["background"] = labelBackground.get()
+    labelStartTime["background"] = labelBackground.get()
+    labelEndTime["background"] = labelBackground.get()
+    labelTotalPlayTime["background"] = labelBackground.get()
+    labelFallAsleep["background"] = labelBackground.get()
+    labelWakeUp["background"] = labelBackground.get()
+    labelFadeIn["background"] = labelBackground.get()
+    labelFadeOut["background"] = labelBackground.get()
+    labelMonoStereoMode["background"] = labelBackground.get()
+    labelSampleRate["background"] = labelBackground.get()
+    labelNofPlays["background"] = labelBackground.get()
+    labelDanthologyMode["background"] = labelBackground.get()
+    if labelBackground.get() != "lightgray": #lightgray is the default color, if condition is true, means user cutomized it
+        play_list.customLabelBackground = custom_color_list.index(labelBackground.get())
+
+def changingBackgroundedLabelsColor(value, loading=1):
+    global play_list
+    if loading!=1:
+        play_list.customChangeBackgroundedLabelsColor = int(value.get())
+    if play_list.customChangeBackgroundedLabelsColor == True:
+        labelPlaying["fg"] = fontColor.get()
+        labelDuration["fg"] = fontColor.get()
+        labelSize["fg"] = fontColor.get()
+        labelVolumeLevel["fg"] = fontColor.get()
+        labelFilesToPlay["fg"] = fontColor.get()
+        labelLength["fg"] = fontColor.get()
+        labelGenre["fg"] = fontColor.get()
+        labelStartTime["fg"] = fontColor.get()
+        labelEndTime["fg"] = fontColor.get()
+        labelTotalPlayTime["fg"] = fontColor.get()
+        labelFallAsleep["fg"] = fontColor.get()
+        labelWakeUp["fg"] = fontColor.get()
+        labelFadeOut["fg"] = fontColor.get()
+        labelFadeIn["fg"] = fontColor.get()
+        labelMonoStereoMode["fg"] = fontColor.get()
+        labelSampleRate["fg"] = fontColor.get()
+        labelNofPlays["fg"] = fontColor.get()
+        labelDanthologyMode["fg"] = fontColor.get()
+    else:
+        color = OpenFileButton["bg"] #put the same color as button background
+        labelPlaying["fg"] = color
+        labelDuration["fg"] = color
+        labelSize["fg"] = color
+        labelVolumeLevel["fg"] = color
+        labelFilesToPlay["fg"] = color
+        labelLength["fg"] = color
+        labelGenre["fg"] = color
+        labelStartTime["fg"] = color
+        labelEndTime["fg"] = color
+        labelTotalPlayTime["fg"] = color
+        labelFallAsleep["fg"] = color
+        labelWakeUp["fg"] = color
+        labelFadeOut["fg"] = color
+        labelFadeIn["fg"] = color
+        labelMonoStereoMode["fg"] = color
+        labelSampleRate["fg"] = color
+        labelNofPlays["fg"] = color
+        labelDanthologyMode["fg"] = color
 
 def move_up():
     global listBox_Song_selected_index
@@ -1726,6 +2568,9 @@ def changeFonts():
     labelFadeOut["font"] = allButtonsFont
     labelFadeIn["font"] = allButtonsFont
     labelMonoStereoMode["font"] = allButtonsFont
+    labelSampleRate["font"] = allButtonsFont
+    labelNofPlays["font"] = allButtonsFont
+    labelDanthologyMode["font"] = allButtonsFont
     # changing listbox
     listbox["font"] = allButtonsFont
     #changing radiobuttons:
@@ -1819,6 +2664,9 @@ def packPositionLabels():
     labelFadeIn.pack()
     labelFadeOut.pack()
     labelMonoStereoMode.pack()
+    labelSampleRate.pack()
+    labelNofPlays.pack()
+    labelDanthologyMode.pack()
 
     # Placing the labels
     labelDuration.place(x=10, y=210)
@@ -1830,12 +2678,16 @@ def packPositionLabels():
     labelGenre.place(x=10, y=330)
     labelStartTime.place(x=10, y=350)
     labelEndTime.place(x=10, y=370)
-    labelTotalPlayTime.place(x=10, y=550)
-    labelFallAsleep.place(x=10, y=570)
-    labelWakeUp.place(x=10, y=590)
+    labelNofPlays.place(x=300, y=290)
+    labelSampleRate.place(x=300, y=310)
     labelFadeIn.place(x=300, y=330)
     labelFadeOut.place(x=300, y=350)
     labelMonoStereoMode.place(x=300, y=370)
+
+    labelTotalPlayTime.place(x=10, y=550)
+    labelFallAsleep.place(x=10, y=570)
+    labelWakeUp.place(x=10, y=590)
+    labelDanthologyMode.place(x=300, y=550)
 
 def pressedEnter(event):
     play_music()
@@ -1952,6 +2804,7 @@ def pressedKeyShortcut(event):
                 + "T - is equivalent to Sleep\Wake Button\n"
                 + "J - is equivalent to Search Button\n"
                 + "P - is equivalent to Customize Option\n"
+                + "W - will rename the Selected Song in the Playlist as: 'Artist - Title.mp3'"
                 + "A - is equivalent to Slideshow\n"
                 + "[0-9] - are equivalent to Volume Set 0% - 100%.\n"
                 + "SPACE - is equivalent to Pause, or action the active button selected using Tab.\n"
@@ -1971,6 +2824,20 @@ def pressedKeyShortcut(event):
         searchSongInPlaylist()
     elif event.char == "t":
         showSleepingTool()
+    elif event.char == "h":
+        Mp3TagModifierTool()
+
+def listboxShortcuts(event):
+    if event.char == "w":
+        if dialog == None:
+            if listBox_Song_selected_index!=None and type(dialog) != SearchTool:
+                Mp3TagModifierTool(listBox_Song_selected_index)
+                dialog.ComposeNameCheckButtonVar.set(1)
+                dialog.checkUncheckNameComposal(event)
+                dialog.SaveChanges()
+                dialog.destroy()
+        else:
+            messagebox.showinfo("Information", "Please close the other component window to do this.")
 
 def songInfo():
     element = play_list.validFiles[listBox_Song_selected_index]
@@ -1989,12 +2856,61 @@ def openFileInExplorer():
 
 def rightClickListboxElement(event):
     if listBox_Song_selected_index != None:
+        listboxSelectedEvent = event.widget
+        if len(listboxSelectedEvent.curselection()) > 0:
+            if type(dialog) != SearchTool:
+                index = int(listboxSelectedEvent.curselection()[0])
+            else:
+                index = int(listboxSelectedEvent.curselection()[0])
+                value = listbox.get(index)
+                value = value.split(". ")
+                index = int(value[0])
         aMenu = tk.Menu(window, tearoff=0)
         aMenu.add_command(label='Delete', command=remove_song)
         aMenu.add_command(label='File Info', command=songInfo)
         aMenu.add_command(label='Move Up', command=move_up)
         aMenu.add_command(label='Move Down', command=move_down)
         aMenu.add_command(label='Open in Explorer', command=openFileInExplorer)
+        if len(listboxSelectedEvent.curselection()) > 0:
+            aMenu.add_command(label='MP3 Tag Modifier', command= lambda:Mp3TagModifierTool(index))
+        aMenu.post(event.x_root, event.y_root)
+
+def showAboutWindow():
+    messagebox.showinfo("About",
+            "Hello!\n"+
+            "\nWelcome To PyPlay Mp3 Player,\n\n"+
+            "This Application was developed by Dragos Vacariu from 14 June 2019 to 10 July 2019, "+
+            "with the main purpose of testing programming capabilities, especially python skills.\n"+
+            "Work efforts were around 100 hours, so "+
+            "there might still be bugs left behind for me to find out later.\n"+
+            "\nMy Contact Details are the following:\n" +
+            "Email: dragos.vacariu@mail.com\n" +
+            "LinkedIn: www.linkedin.com/in/dragos-vacariu-em\n"+
+            "\nOther projects I test my skills on, are available at:\n"+
+            "GitHub Repository: github.com/dragos-vacariu/ \n"
+            "\nThank you for trying PyPlay!\n")
+
+def showCustomizeWindow():
+    if dialog == None:
+        Customize(window)
+    else:
+        messagebox.showinfo("Information", "Please close the other component window before proceed.")
+
+def showSlideshowWindow():
+    if Slideshow.top == None:
+        Slideshow()
+    else:
+        messagebox.showinfo("Information", "Slideshow is already opened.")
+
+def rightClickOnWindow(event):
+    if window.winfo_containing(event.x_root, event.y_root) != listbox: # don't execute this if the cursor is inside the listbox
+        aMenu = tk.Menu(window, tearoff=0)
+        aMenu.add_command(label='About', command=showAboutWindow)
+        aMenu.add_command(label='Customize', command=showCustomizeWindow)
+        aMenu.add_command(label='Slideshow', command=showSlideshowWindow)
+        aMenu.add_command(label='SleepingTool', command=showSleepingTool)
+        aMenu.add_command(label='CuttingTool', command=showCuttingTool)
+        aMenu.add_command(label='SearchTool', command=searchSongInPlaylist)
         aMenu.post(event.x_root, event.y_root)
 
 def packPositionListScrolOptionProgRadio():
@@ -2004,12 +2920,14 @@ def packPositionListScrolOptionProgRadio():
     listbox.bind('<ButtonPress-3>', rightClickListboxElement)
     listbox.bind('<<ListboxSelect>>', list_selected_item)
     listbox.bind("<Return>", pressedEnter)
+    listbox.bind("<Key>", listboxShortcuts)
     window.bind("<Return>", pressedEnter)
     window.bind("<Tab>", pressedTab)
     window.bind("<Key>", pressedKeyShortcut)
     window.bind("<Shift_L>", pressedShiftRight)
     window.bind("<Control_L>", pressedCtrlRight)
     window.bind("<Delete>", pressedDelete)
+    window.bind('<ButtonPress-3>', rightClickOnWindow)
     frame.place(x=600, y=10)
     scroll.config(command=listbox.yview)
     scroll.pack(side = tk.RIGHT, fill=tk.Y) #this will place scrollbar on the right side of FRAME, if width is adjusted, they will be next to each other
@@ -2020,7 +2938,7 @@ def packPositionListScrolOptionProgRadio():
     styl.configure("Horizontal.TProgressbar", foreground='red', background='blue')
     progress.bind("<Button>", navigationSound)
     progress.pack()
-    progress.place(x=10, y=405)
+    progress.place(x=progressBarMargin, y=405)
     R1.pack()
     R2.pack()
     R3.pack()
@@ -2048,19 +2966,20 @@ def showSleepingTool():
     else:
         messagebox.showinfo("Information","Please close the other component window before proceed.")
 
-def fontTransition(Message):
+def fontTitleTransition(Message):
     Message = list(Message)
     for x in range(0, len(Message)):
-        if Message[x] == "_":
-            if(x+1<len(Message)):
-                Message[x] = Message[x+1]
-                Message[x+1] = "_"
-            else:
-                Message[x] = Message[0]
-                Message[0] = "_"
+        if(x+1<len(Message)):
+            aux = Message[x+1]
+            Message[x] = Message[x+1]
+            Message[x+1] = aux
+        else:
+            aux = Message[0]
+            Message[x] = Message[0]
+            Message[0] = aux
     return "".join(Message)
 
-def fontMovingTransition(Message):
+def fontSeparatedTransition(Message):
     Message = list(Message)
     for x in range(0, len(Message)):
         if Message[x] == "_":
@@ -2075,6 +2994,16 @@ def fontMovingTransition(Message):
                 Message = "_" + Message
             break
     return "".join(Message)
+
+def fontTypeWritingTransition():
+    global visualSongNameLabel
+    if visualSongNameLabel == play_list.validFiles[play_list.currentSongIndex].fileName:
+        visualSongNameLabel = visualSongNameLabel = play_list.validFiles[play_list.currentSongIndex].fileName[0]
+    else:
+        if visualSongNameLabel == None:
+            visualSongNameLabel = play_list.validFiles[play_list.currentSongIndex].fileName[0]
+        else:
+            visualSongNameLabel += play_list.validFiles[play_list.currentSongIndex].fileName[len(visualSongNameLabel)]
 
 def searchSongInPlaylist():
     if dialog == None:
@@ -2131,7 +3060,7 @@ def fadeout(Position):
             pygame.mixer.music.set_volume(play_list.VolumeLevel - (play_list.VolumeLevel / 10))
 
 window = tk.Tk() #tk.Tk() return a widget which is window
-Project_Title = "_PyPlay MP3 Player in Python_"
+Project_Title = "   PyPlay MP3 Player in Python     "
 window.title(Project_Title)
 
 window.geometry("500x430+100+100")# build a window 30x280 on size at position 500 x 300 (almost center of screen)
@@ -2326,11 +3255,11 @@ labelBackground.set("lightgray")
 SongName = StringVar()
 SongName.set("Playing: ")
 
-labelPlaying = tk.Label(window, textvariable=SongName, compound=tk.CENTER, padx=10 \
+labelPlaying = tk.Label(window, textvariable=SongName, compound=tk.CENTER, padx=10, bd=2 \
                         , fg=SkinColor.get(), font=allButtonsFont, background = labelBackground.get())  # creating a label on the window
 
 SongDuration = StringVar()
-SongDuration.set("Progress: ")
+SongDuration.set("Time Elapsed: ")
 
 labelDuration = tk.Label(window, textvariable=SongDuration, compound=tk.CENTER, padx=10 \
                         , fg=SkinColor.get(), font=allButtonsFont, background = labelBackground.get())  # creating a label on the window
@@ -2346,7 +3275,7 @@ labelVolumeLevel = tk.Label(window, textvariable=textVolumeLevel, compound=tk.CE
                         , fg=SkinColor.get(), font=allButtonsFont, background = labelBackground.get())  # creating a label on the window
 
 textFilesToPlay = StringVar()
-textFilesToPlay.set("Files To Play: " + str(len(play_list.validFiles)))
+textFilesToPlay.set("Files: " + str(len(play_list.validFiles)))
 labelFilesToPlay = tk.Label(window, textvariable=textFilesToPlay, compound=tk.CENTER, padx=10 \
                         , fg=SkinColor.get(), font=allButtonsFont, background = labelBackground.get())  # creating a label on the window
 
@@ -2398,6 +3327,21 @@ labelFadeOut = tk.Label(window, textvariable=textFadeOut, compound=tk.CENTER, pa
 textMonoStereoMode = StringVar()
 textMonoStereoMode.set("Mode: ")
 labelMonoStereoMode = tk.Label(window, textvariable=textMonoStereoMode, compound=tk.CENTER, padx=10 \
+                        , fg=SkinColor.get(), font=allButtonsFont, background = labelBackground.get())
+
+textSampleRate = StringVar()
+textSampleRate.set("Sample Rate: ")
+labelSampleRate = tk.Label(window, textvariable=textSampleRate, compound=tk.CENTER, padx=10 \
+                        , fg=SkinColor.get(), font=allButtonsFont, background = labelBackground.get())
+
+textNofPlays = StringVar()
+textNofPlays.set("No. of Plays: ")
+labelNofPlays = tk.Label(window, textvariable=textNofPlays, compound=tk.CENTER, padx=10 \
+                        , fg=SkinColor.get(), font=allButtonsFont, background = labelBackground.get())
+
+textDanthologyMode = StringVar()
+textDanthologyMode.set("Danthology Mode: OFF")
+labelDanthologyMode = tk.Label(window, textvariable=textDanthologyMode, compound=tk.CENTER, padx=10 \
                         , fg=SkinColor.get(), font=allButtonsFont, background = labelBackground.get())
 
 packPositionLabels()
