@@ -1,2 +1,18 @@
-if the script crashes on startup, problem might be cause by the backup.pypl file.
--remove that file and try again :)
+If the script crashes on startup, problem might be cause by the backup files.
+
+Here is the legend of backup files for you to decide which to remove in these circumstances:
+
+RENAMEALLFILES.backup -> is the file created to keep tracking of the names when using MASS FILE EDITOR.
+In this file is stored the original names of the .mp3 files. If you remove this, you will not be able
+to undo Renaming for all the files.
+
+PlayListBackup.pypl -> is the file which stores the details, and location of all the songs in 
+your Playlist, if you remove this, the playlist is set to Defaults.
+
+
+ALLARTISTTITLE.backup -> is the file created to keep tracking of the Artist and Title tags, when using
+MASS FILE EDITOR to compose these 2 tags from FileName.
+
+
+The .PNG files from "installation of pip libraries guide" have no functional impact, they are just a guide of how 
+to install libraries, in order to use this script.

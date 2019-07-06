@@ -16,12 +16,15 @@ from PIL import ImageTk, Image
 import subprocess
 import math
 import shutil
+import urllib3
+from bs4 import BeautifulSoup
 
 class Playlist:
     def __init__(self):
         self.isSongPause = False
         self.isSongStopped = False
         self.VolumeLevel=1.0
+        self.useMassFileEditor=False
         self.dirFilePath = None
         self.danthologyMode=False
         self.danthologyDuration=0
@@ -51,6 +54,8 @@ class Playlist:
         self.customFontColor = None
         self.customChangeBackgroundedLabelsColor = None
         self.userCreatedColors = []
+        self.ProgressBarType = "determinate"
+        self.LyricsActiveSource = LyricsOnlineSources[0] #default, all sources
 
 class Song:
     def __init__(self, filename, filepath, filesize):
@@ -63,6 +68,11 @@ class Song:
         self.sample_rate = audio.info.sample_rate
         self.channels = audio.info.channels
         self.Length = audio.info.length
+        
+        mp3 = MP3(self.filePath) # if the mp3 file has no tags, then the tags will be added to the file.
+        if mp3.tags is None:
+            mp3.add_tags()
+            mp3.save()
         audio = EasyID3(self.filePath)
         try:
             self.Genre = audio["genre"]
@@ -109,7 +119,7 @@ class CuttingTool:
             self.top.protocol("WM_DELETE_WINDOW", self.destroy)
             Window_Title = "Cutting Tool"
             self.top.title(Window_Title)
-            self.top.geometry("380x340+100+100")
+            self.top.geometry("380x300+100+100")
             self.top.attributes('-alpha', play_list.windowOpacity)
             allButtonsFont = skinOptions[2][play_list.skin]
             columnOne = 10
@@ -118,51 +128,51 @@ class CuttingTool:
             self.InfoLabelText.set("Welcome to MP3 Cutting capability:\n\n"
                                +"Please enter Start and End value and Hit OK.\n"
                                 +"This will NOT change the original file.\n\n\n")
-            tk.Label(self.top, textvariable=self.InfoLabelText, fg=fontColor.get(), font=allButtonsFont, bg=color).place(x=80, y=10)
+            tk.Label(self.top, textvariable=self.InfoLabelText, fg=fontColor.get(), font=allButtonsFont, bg=color).place(x=40, y=10)
             tk.Label(self.top, text="Start Value (0 - " + str(int(play_list.validFiles[play_list.currentSongIndex].Length)) + "):",
-                                            fg=fontColor.get(), font=allButtonsFont, bg=color).place(x=columnOne, y=80)
+                                            fg=fontColor.get(), font=allButtonsFont, bg=color).place(x=columnOne, y=100)
 
             self.startValue = tk.Entry(self.top)
-            self.startValue.place(x=columnOne, y=100)
+            self.startValue.place(x=columnOne, y=120)
             self.startValue.bind("<Return>", self.cutItem)
 
             tk.Label(self.top, text="End Value (0 - " + str(int(play_list.validFiles[play_list.currentSongIndex].Length)) + "):", fg=fontColor.get(),
-                                          font=allButtonsFont, bg=color).place(x=columnOne, y=120)
+                                          font=allButtonsFont, bg=color).place(x=columnOne, y=140)
             self.endValue = tk.Entry(self.top)
-            self.endValue.place(x=columnOne, y=140)
+            self.endValue.place(x=columnOne, y=160)
 
             self.endValue.bind("<Return>", self.cutItem)
             self.buttonOK = tk.Button(self.top, text="OK", command=self.okButtonPressed, bg=color, fg=fontColor.get(), font=allButtonsFont)
-            self.buttonOK.place(x=columnOne, y=170)
+            self.buttonOK.place(x=columnOne, y=190)
 
-            tk.Label(self.top, text="Add FadeIn: ", fg=fontColor.get(), font=allButtonsFont, bg=color).place(x=columnTwo, y=80)
+            tk.Label(self.top, text="Add FadeIn: ", fg=fontColor.get(), font=allButtonsFont, bg=color).place(x=columnTwo, y=100)
             self.FadeIn = StringVar()
             self.FadeIn.set(str(play_list.validFiles[play_list.currentSongIndex].fadein_duration))
             fadeOptions = ["5","10","15", "20"]
             self.fadeInBox = Combobox(self.top, textvariable=self.FadeIn, values=fadeOptions)
-            self.fadeInBox.place(x=columnTwo, y=100)
+            self.fadeInBox.place(x=columnTwo, y=120)
             self.fadeInBox.bind("<<ComboboxSelected>>", self.addFadeIn)
 
-            tk.Label(self.top, text="Add FadeOut: ", fg=fontColor.get(), font=allButtonsFont, bg=color).place(x=columnTwo, y=120)
+            tk.Label(self.top, text="Add FadeOut: ", fg=fontColor.get(), font=allButtonsFont, bg=color).place(x=columnTwo, y=140)
             self.FadeOut = StringVar()
             self.FadeOut.set(str(play_list.validFiles[play_list.currentSongIndex].fadeout_duration))
             self.fadeOutBox = Combobox(self.top, textvariable=self.FadeOut, values=fadeOptions)
-            self.fadeOutBox.place(x=columnTwo, y=140)
+            self.fadeOutBox.place(x=columnTwo, y=160)
             self.fadeOutBox.bind("<<ComboboxSelected>>", self.addFadeOut)
             self.top.bind("<Escape>", self.destroyEsc)
             self.top.bind("<Tab>", self.focus_Input)
             self.addFadeInOutAll = tk.Button(self.top, text="Add Fading to All", command=self.addFadingOnPlaylist,
                                              bg=color,
                                              fg=fontColor.get(), font=allButtonsFont)
-            self.addFadeInOutAll.place(x=columnTwo, y=170)
+            self.addFadeInOutAll.place(x=columnTwo, y=190)
 
             self.restoreButton = tk.Button(self.top, text="Restore Defaults for This Song", command=self.restoreCurrentSong, bg=color, fg=fontColor.get(), font=allButtonsFont)
-            self.restoreButton.place(x=90, y=220)
+            self.restoreButton.place(x=80, y=230)
 
             self.restoreForAllButton = tk.Button(self.top, text="Restore Defaults for All Songs",
                                            command=self.restoreAllSongs, bg=color, fg=fontColor.get(),
                                            font=allButtonsFont)
-            self.restoreForAllButton.place(x=90, y=260)
+            self.restoreForAllButton.place(x=80, y=260)
 
             dialog = self #each instance of CuttingTool will be assigned to this variable:
 
@@ -284,10 +294,15 @@ class SearchTool:
         tk.Label(self.top, textvariable=InfoLabelText, fg=fontColor.get(), font=allButtonsFont, bg=color).pack()
         tk.Label(self.top, text="Value: ", fg=fontColor.get(), font=allButtonsFont, bg=color).pack()
         self.searchValue = tk.Entry(self.top)
-        self.searchValue.bind("<Key>", self.showResults)
+        #these were used for instant search, but require multi-processing/threading, otherwise is very slow:
+        #self.searchValue.bind("<Key>", self.showResults)
+        #self.searchValue.bind("<Return>", self.playNextSearch)
+
+        #this is used for normal search
+        self.searchValue.bind("<Return>", self.showResults)
+
         self.top.bind("<Key>", self.focus_Input)
         self.top.bind("<Tab>", self.focus_out)
-        self.searchValue.bind("<Return>", self.playNextSearch)
         self.searchValue.bind("<Escape>", self.destroyEsc)
         self.searchValue.bind("<Shift_R>", self.playPreviousSearch)
         self.top.bind("<Escape>", self.destroyEsc)
@@ -669,7 +684,7 @@ class Customize:
         self.top.protocol("WM_DELETE_WINDOW", self.destroy)
         Window_Title = "Customize"
         self.top.title(Window_Title)
-        self.top.geometry("650x420+100+100")
+        self.top.geometry("620x500+100+100")
         self.top.attributes('-alpha', play_list.windowOpacity)
         columnOne = 10
         columnTwo = 220
@@ -722,6 +737,14 @@ class Customize:
                                          values=["No Usage", "Button&Label Color", "Label Background", "Font Color"])
         self.ColorPickerUsage.place(x=columnOne, y=300)
         self.ColorPickerUsage.bind("<<ComboboxSelected>>", self.useColorPicked)
+        
+        tk.Label(self.top, text="ProgressBar Type: ", fg=fontColor.get(), font=allButtonsFont.get(), bg=color).place(x=columnOne, y=320)
+        self.textProgressBarType = StringVar()
+        self.textProgressBarType.set(play_list.ProgressBarType)
+        self.ProgressBarTypeBox = Combobox(self.top, textvariable=self.textProgressBarType,
+                                         values=["determinate", "indeterminate"])
+        self.ProgressBarTypeBox.place(x=columnOne, y=340)
+        self.ProgressBarTypeBox.bind("<<ComboboxSelected>>", self.changeProgressBar)
 
         self.TitleTransitionButtonText = StringVar()
         if play_list.usePlayerTitleTransition == True:
@@ -770,6 +793,15 @@ class Customize:
         self.ProgressTimeBox.place(x=columnTwo, y=310)
         self.ProgressTimeBox.bind("<<ComboboxSelected>>", self.changeProgressTime)
 
+        tk.Label(self.top, text="Lyrics Active Source: ", fg=fontColor.get(), font=allButtonsFont.get(),
+                 bg=color).place(x=columnTwo, y=330)
+        self.LyricsSourcesText = StringVar()
+        self.LyricsSourcesText.set(play_list.LyricsActiveSource)
+        self.LyricsSourcesBox = Combobox(self.top, textvariable=self.LyricsSourcesText,
+                                         values=LyricsOnlineSources)
+        self.LyricsSourcesBox.place(x=columnTwo, y=350)
+        self.LyricsSourcesBox.bind("<<ComboboxSelected>>", self.changeActiveLyricsSource)
+
         self.textDanthologyMode = StringVar()
 
         if play_list.danthologyMode == True:
@@ -808,16 +840,40 @@ class Customize:
         self.ColorPickerResult = tk.Label(self.top, text="     Result       ", fg=fontColor.get(), font=self.ColorPickerValue,
                  bg=color)
         self.ColorPickerResult.place(x=columnThree, y=310)
+		
+        self.MassFileEditorUsage = tk.IntVar()
+        self.MassFileEditorUsage.set(play_list.useMassFileEditor)
+
+        tk.Checkbutton(self.top, text="Use mass file editor capabilities.", fg=fontColor.get(), font=allButtonsFont.get(),
+                       bg=color, variable=self.MassFileEditorUsage, command=self.enableDisableMassFileEditor,
+                       selectcolor="black").place(x=180, y=380)
+		
         tk.Label(self.top, text="Danthology refers to resuming the next song \n"+
                                 "at the duration the current one has ended.\n" +
                                 "This feature enables easier browse among \n"+
                                 "unknown songs.", fg=fontColor.get(),
-                        font=allButtonsFont.get(), bg=color).place(x=150, y=340)
+                        font=allButtonsFont.get(), bg=color).place(x=160, y=410)
 
         self.top.bind("<Escape>", self.destroyEsc)
         self.top.bind("<Tab>", self.focus_Input)
         dialog = self
 
+    def changeActiveLyricsSource(self, event):
+        play_list.LyricsActiveSource = self.LyricsSourcesText.get()
+
+    def changeProgressBar(self, event):
+        global play_list
+        global progress
+        play_list.ProgressBarType = self.textProgressBarType.get()
+        progress["mode"] = play_list.ProgressBarType
+    
+    def enableDisableMassFileEditor(self):
+        global play_list
+        if self.MassFileEditorUsage.get() == 1:
+            play_list.useMassFileEditor = True
+        else:
+            play_list.useMassFileEditor = False
+		
     def changeProgressTime(self, event):
         global play_list
         if self.ProgressTimeText.get() == "Playing Time":
@@ -973,7 +1029,7 @@ class NewPlaylistDialog:
         self.top.protocol("WM_DELETE_WINDOW", self.destroy)
         Window_Title = "Info"
         self.top.title(Window_Title)
-        self.top.geometry("450x170+100+100")
+        self.top.geometry("480x200+100+100")
         self.top.attributes('-alpha', play_list.windowOpacity)
         if type(allButtonsFont) == StringVar:
             allButtonsFont = allButtonsFont.get()
@@ -1026,10 +1082,12 @@ class NewPlaylistDialog:
         self.top.destroy()
         dialog = None
 
-class Mp3TagModifierTool: #not yet properly working
+class Mp3TagModifierTool:
     def __init__(self, fileIndex=0):
         global allButtonsFont
         global dialog
+        self.undoRenameBackupFile = "RENAMEALLFILES.backup"
+        self.undoArtistTitleBackupFile = "ALLARTISTTITLE.backup"
         color = OpenFileButton["bg"]  # get the color which the rest of elements is using at the moment
         self.top = tk.Toplevel(window, bg=color)
         Window_Title = "Mp3TagModifier Tool"
@@ -1038,7 +1096,7 @@ class Mp3TagModifierTool: #not yet properly working
         columnThree = 290
         self.Song = play_list.validFiles[fileIndex]
         self.top.title(Window_Title)
-        self.top.geometry("500x280+100+100")
+        self.top.geometry("600x350+100+100")
         self.top.protocol("WM_DELETE_WINDOW", self.destroy)
         self.top.attributes('-alpha', play_list.windowOpacity)
         allButtonsFont = skinOptions[2][play_list.skin]
@@ -1046,55 +1104,485 @@ class Mp3TagModifierTool: #not yet properly working
         self.NameTag = tk.Entry(self.top, width=80)
         self.NameTag.insert(0, self.Song.fileName)
         self.NameTag.place(x=columnOne, y=25)
-        self.NameTag.bind("<Key>", self.checkUncheckArtistTitleComposal)
+        self.NameTag.bind("<Key>", self.setNAOnName)
+        
+        tk.Label(self.top, text="Naming Case:", fg=fontColor.get(), font=allButtonsFont, bg=color).place(x=500, y=5)
+        textConversionValues=["NA","Capitalize", "SemiCapitalize", "Upper Case", "Lower Case"]
+        self.nameTextFormat = StringVar()
+        self.nameTextFormat.set("NA")
+        self.NameFormatBox = Combobox(self.top, textvariable=self.nameTextFormat, values=textConversionValues, width=10)
+        self.NameFormatBox.place(x=500, y=25)
+        self.NameFormatBox.bind("<<ComboboxSelected>>", self.changeNameFormat)
+        
         tk.Label(self.top, text="Genre:", fg=fontColor.get(), font=allButtonsFont, bg=color).place(x=columnOne, y=45)
         self.GenreTag = tk.Entry(self.top, width=15)
         self.GenreTag.insert(0, self.Song.Genre)
         self.GenreTag.place(x=columnOne, y=65)
+        self.GenreTag.bind("<Key>", self.setNAOnTags)
+        tk.Label(self.top, text="Tagging Case:", fg=fontColor.get(), font=allButtonsFont, bg=color).place(x=500, y=65)
+        self.tagTextFormat = StringVar()
+        self.tagTextFormat.set("NA")
+        self.TagFormatBox = Combobox(self.top, textvariable=self.tagTextFormat, values=textConversionValues, width=10)
+        self.TagFormatBox.place(x=500, y=85)
+        self.TagFormatBox.bind("<<ComboboxSelected>>", self.changeTagFormat)
+        
         tk.Label(self.top, text="Year:", fg=fontColor.get(), font=allButtonsFont, bg=color).place(x=columnTwo, y=45)
         self.YearTag = tk.Entry(self.top, width=15)
         self.YearTag.insert(0, self.Song.Year)
         self.YearTag.place(x=columnTwo, y=65)
+        self.YearTag.bind("<Key>", self.setNAOnTags)
         tk.Label(self.top, text="Album:", fg=fontColor.get(), font=allButtonsFont, bg=color).place(x=columnThree, y=45)
         self.AlbumTag = tk.Entry(self.top, width=30)
         self.AlbumTag.insert(0, self.Song.Album)
         self.AlbumTag.place(x=columnThree, y=65)
+        self.AlbumTag.bind("<Key>", self.setNAOnTags)
         tk.Label(self.top, text="Artist:", fg=fontColor.get(), font=allButtonsFont, bg=color).place(x=columnOne, y=85)
         self.ArtistTag = tk.Entry(self.top, width=35)
         self.ArtistTag.insert(0, self.Song.Artist)
         self.ArtistTag.place(x=columnOne, y=105)
-        self.ArtistTag.bind("<Key>", self.checkUncheckNameComposal)
+        self.ArtistTag.bind("<Key>", self.setNAOnTags)
         tk.Label(self.top, text="Title:", fg=fontColor.get(), font=allButtonsFont, bg=color).place(x=250, y=85)
         self.TitleTag = tk.Entry(self.top, width=35)
         self.TitleTag.insert(0, self.Song.Title)
         self.TitleTag.place(x=250, y=105)
-        self.TitleTag.bind("<Key>", self.checkUncheckNameComposal)
+        self.TitleTag.bind("<Key>", self.setNAOnTags)
         SaveChangesButton = tk.Button(self.top, text="Save Changes", command=self.SaveChanges, fg=fontColor.get(), font=allButtonsFont,
                                 bg=color)
         SaveChangesButton.place(x=columnOne, y=145)
 
-        self.ComposeNameCheckButtonVar = tk.IntVar()
-        self.ComposeNameCheckButtonVar.set(0)
-        tk.Checkbutton(self.top, text="Compose filename from Artist and Title fields.", fg=fontColor.get(), font=allButtonsFont,
-                                bg=color, variable=self.ComposeNameCheckButtonVar, command=self.checkUncheckNameComposal, selectcolor="black").place(x=columnTwo, y=145)
+        ComposeFileNameButton = tk.Button(self.top, text="Compose Filename from 'Artist - Title'", command=self.composeFileName, fg=fontColor.get(), font=allButtonsFont,
+                                        bg=color)
+        ComposeFileNameButton.place(x=columnTwo, y=145)
+        ComposeArtistTitleButton = tk.Button(self.top, text="Compose Artist/Title from Filename", command=self.composeArtistTitle, fg=fontColor.get(), font=allButtonsFont,
+                                        bg=color)
+        ComposeArtistTitleButton.place(x=columnTwo, y=175)
 
-        self.ComposeArtistTitleCheckButtonVar = tk.IntVar()
-        self.ComposeArtistTitleCheckButtonVar.set(0)
-        tk.Checkbutton(self.top, text="Compose Artist and Title from filename.", fg=fontColor.get(), font=allButtonsFont,
-                       bg=color, variable=self.ComposeArtistTitleCheckButtonVar, command=self.checkUncheckArtistTitleComposal,
-                       selectcolor="black").place(x=columnTwo, y=165)
-
-        tk.Button(self.top, text="Capitalize the Name of the File", command=self.NameCapitalizer, fg=fontColor.get(), font=allButtonsFont, bg=color).place(x=columnTwo, y=195)
-
-        tk.Button(self.top, text="Capitalize the Main Words Only", command=self.CapitalizeMainWordsOnly, fg=fontColor.get(),
-                  font=allButtonsFont, bg=color).place(x=columnTwo, y=225)
-
-        tk.Button(self.top, text="Rename All Files to 'Artist - Title.mp3'", command=self.renameAllFiles, fg=fontColor.get(), font=allButtonsFont,
-                                      bg=color).place(x=columnTwo, y=255)
+        self.MassRenameButton = tk.Button(self.top, text="Rename All Files to 'Artist - Title.mp3'", command=self.renameAllFiles, fg=fontColor.get(), font=allButtonsFont,
+                                      bg=color)
+        self.MassRenameButton.place(x=columnTwo, y=215)
+        if play_list.useMassFileEditor:
+            self.MassRenameButton.config(state = tk.NORMAL)
+        else:
+            self.MassRenameButton.config(state = tk.DISABLED)
+                
+        self.undoMassRenameButton = tk.Button(self.top, text="Restore Previous Names to All Files.", command=self.restorePreviousNames, fg=fontColor.get(), font=allButtonsFont,
+                                      bg=color)
+        self.undoMassRenameButton.place(x=columnTwo, y=245)
+        if os.path.isfile(self.undoRenameBackupFile) and play_list.useMassFileEditor:
+            self.undoMassRenameButton.config(state = tk.NORMAL)
+        else:
+            self.undoMassRenameButton.config(state = tk.DISABLED)
+            
+        self.MassArtistTitleComposeButton = tk.Button(self.top, text="Compose Artist/Title from FileName to All Files.mp3'", command=self.composeArtistTitleAll, fg=fontColor.get(), font=allButtonsFont,
+                                      bg=color)
+        self.MassArtistTitleComposeButton.place(x=columnTwo, y=275)
+        if play_list.useMassFileEditor:
+            self.MassArtistTitleComposeButton.config(state = tk.NORMAL)
+        else:
+            self.MassArtistTitleComposeButton.config(state = tk.DISABLED)
+        
+        self.undoMassArtistTitleComposeButton = tk.Button(self.top, text="Restore Previous Artist/Title to All Files", command=self.undoComposeArtistTitleAll, fg=fontColor.get(), font=allButtonsFont,
+                                      bg=color)
+        self.undoMassArtistTitleComposeButton.place(x=columnTwo, y=305)
+        if play_list.useMassFileEditor and os.path.isfile(self.undoArtistTitleBackupFile):
+            self.undoMassArtistTitleComposeButton.config(state = tk.NORMAL)
+        else:
+            self.undoMassArtistTitleComposeButton.config(state = tk.DISABLED)
         self.top.bind("<Tab>", self.focus_out)
         self.top.bind("<Escape>", self.destroyEsc)
         dialog = self
 
+    def tagCapitalizer(self):
+        if self.ArtistTag.get()!= "Various":
+            newValue=self.ArtistTag.get().split(" ")
+            value=""
+            for word in newValue:
+                value+= word.capitalize() + " "
+            self.ArtistTag.delete(0, tk.END) 
+            self.ArtistTag.insert(0, value.strip(" ")) 
+        if self.GenreTag.get()!= "Various":
+            newValue=self.GenreTag.get().split(" ")
+            value=""
+            for word in newValue:
+                value+= word.capitalize() + " "
+            self.GenreTag.delete(0, tk.END) 
+            self.GenreTag.insert(0, value.strip(" ")) 
+        if self.TitleTag.get()!= "Various":
+            newValue=self.TitleTag.get().split(" ")
+            value=""
+            for word in newValue:
+                value+= word.capitalize() + " "
+            self.TitleTag.delete(0, tk.END) 
+            self.TitleTag.insert(0, value.strip(" ")) 
+        if self.AlbumTag.get()!= "Various":
+            newValue=self.AlbumTag.get().split(" ")
+            value=""
+            for word in newValue:
+                value+= word.capitalize() + " "
+            self.AlbumTag.delete(0, tk.END) 
+            self.AlbumTag.insert(0, value.strip(" ")) 
+        if self.YearTag.get()!= "Various":
+            newValue=self.YearTag.get().split(" ")
+            value=""
+            for word in newValue:
+                value+= word.capitalize() + " "
+            self.YearTag.delete(0, tk.END) 
+            self.YearTag.insert(0, value.strip(" ")) 
+    
+    def tagSemiCapitalizer(self):
+        if self.ArtistTag.get()!= "Various":
+            newValue=self.ArtistTag.get().split(" ")
+            value=""
+            for word in newValue:
+                if newValue.index(word) == 0:
+                    value+= word.capitalize() + " "
+                else:
+                    value+= word.lower() + " "
+            self.ArtistTag.delete(0, tk.END) 
+            self.ArtistTag.insert(0, value.strip(" ")) 
+        if self.GenreTag.get()!= "Various":
+            newValue=self.GenreTag.get().split(" ")
+            value=""
+            for word in newValue:
+                if newValue.index(word) == 0:
+                    value+= word.capitalize() + " "
+                else:
+                    value+= word.lower() + " "
+            self.GenreTag.delete(0, tk.END) 
+            self.GenreTag.insert(0, value.strip(" ")) 
+        if self.TitleTag.get()!= "Various":
+            newValue=self.TitleTag.get().split(" ")
+            value=""
+            for word in newValue:
+                if newValue.index(word) == 0:
+                    value+= word.capitalize() + " "
+                else:
+                    value+= word.lower() + " "
+            self.TitleTag.delete(0, tk.END) 
+            self.TitleTag.insert(0, value.strip(" ")) 
+        if self.AlbumTag.get()!= "Various":
+            newValue=self.AlbumTag.get().split(" ")
+            value=""
+            for word in newValue:
+                if newValue.index(word) == 0:
+                    value+= word.capitalize() + " "
+                else:
+                    value+= word.lower() + " "
+            self.AlbumTag.delete(0, tk.END) 
+            self.AlbumTag.insert(0, value.strip(" ")) 
+        if self.YearTag.get()!= "Various":
+            newValue=self.YearTag.get().split(" ")
+            value=""
+            for word in newValue:
+                if newValue.index(word) == 0:
+                    value+= word.capitalize() + " "
+                else:
+                    value+= word.lower() + " "
+            self.YearTag.delete(0, tk.END) 
+            self.YearTag.insert(0, value.strip(" ")) 
+    
+    def changeTagFormat(self, event):
+        if self.tagTextFormat.get() == "Capitalize":
+            self.tagCapitalizer()
+        elif self.tagTextFormat.get() == "SemiCapitalize":
+            self.tagSemiCapitalizer()
+        elif self.tagTextFormat.get() == "Upper Case":
+            value = self.ArtistTag.get()
+            if value!= "Various":
+                self.ArtistTag.delete(0, tk.END) 
+                self.ArtistTag.insert(0, value.strip(" ").upper()) 
+            value = self.GenreTag.get()
+            if value!= "Various":
+                self.GenreTag.delete(0, tk.END) 
+                self.GenreTag.insert(0, value.strip(" ").upper()) 
+            value = self.TitleTag.get()
+            if value!= "Various":
+                self.TitleTag.delete(0, tk.END) 
+                self.TitleTag.insert(0, value.strip(" ").upper()) 
+            value = self.AlbumTag.get()
+            if value!= "Various":
+                self.AlbumTag.delete(0, tk.END) 
+                self.AlbumTag.insert(0, value.strip(" ").upper()) 
+            value = self.YearTag.get()
+            if value!= "Various":
+                self.YearTag.delete(0, tk.END) 
+                self.YearTag.insert(0, value.strip(" ").upper()) 
+        elif self.tagTextFormat.get() == "Lower Case":
+            value = self.ArtistTag.get()
+            if value!= "Various":
+                self.ArtistTag.delete(0, tk.END) 
+                self.ArtistTag.insert(0, value.strip(" ").lower()) 
+            value = self.GenreTag.get()
+            if value!= "Various":
+                self.GenreTag.delete(0, tk.END) 
+                self.GenreTag.insert(0, value.strip(" ").lower()) 
+            value = self.TitleTag.get()
+            if value!= "Various":
+                self.TitleTag.delete(0, tk.END) 
+                self.TitleTag.insert(0, value.strip(" ").lower()) 
+            value = self.AlbumTag.get()
+            if value!= "Various":
+                self.AlbumTag.delete(0, tk.END) 
+                self.AlbumTag.insert(0, value.strip(" ").lower()) 
+            value = self.YearTag.get()
+            if value!= "Various":
+                self.YearTag.delete(0, tk.END) 
+                self.YearTag.insert(0, value.strip(" ").lower()) 
+
+    def setNAOnName(self, event):
+        self.nameTextFormat.set("NA")
+
+    def setNAOnTags(self, event):
+        self.tagTextFormat.set("NA")
+    
+    def changeNameFormat(self, event):
+        if self.nameTextFormat.get() == "Capitalize":
+            self.NameCapitalizer()
+        elif self.nameTextFormat.get() == "SemiCapitalize":
+            self.NameSemiCapitalizer()
+        elif self.nameTextFormat.get() == "Upper Case":
+            value = self.NameTag.get()
+            self.NameTag.delete(0, tk.END)
+            if value.count("-") == 1:
+                value = value.split("-")    
+                self.NameTag.insert(0, value[0].strip(" ").upper() + " - " + value[1].strip(" ").upper()) 
+            else:
+                self.NameTag.insert(0, value.strip(" ").upper())
+        elif self.nameTextFormat.get() == "Lower Case":
+            value = self.NameTag.get()
+            self.NameTag.delete(0, tk.END)
+            if value.count("-") == 1:
+                value = value.split("-")    
+                self.NameTag.insert(0, value[0].strip(" ").lower() + " - " + value[1].strip(" ").lower()) 
+            else:
+                self.NameTag.insert(0, value.strip(" ").lower())
+    
+    def composeArtistTitleAll(self):# to be fixed
+        dictionary={}
+        dict_list=[]
+        dict_loaded=False
+        if os.path.exists(self.undoArtistTitleBackupFile):
+            try:
+                file = open(self.undoArtistTitleBackupFile, "rb")
+                dict_list = pickle.load(file)
+            except Exception:
+                dict_list = [] #make sure it's empty
+                print("Exception when loading File: " + str(self.undoArtistTitleBackupFile))
+                print("Since the content has been corrupted, your file will be replaced.")
+            else:
+                dict_loaded = True
+                file.close()
+            finally:
+                file = open(self.undoArtistTitleBackupFile, "wb")
+        else:
+            file = open(self.undoArtistTitleBackupFile, "wb")
+        for song in play_list.validFiles:
+            if song.fileName != "":
+                alreadyContained = False
+                if dict_loaded:
+                    for element in dict_list:
+                        if element["newArtist"] == song.Artist and element["newTitle"] == song.Title and element["fileName"] == song.fileName:
+                            alreadyContained = True
+                            break
+                if alreadyContained == False and os.path.exists(song.filePath):
+                    mp3file = EasyID3(song.filePath)
+                    dictionary['fileName'] = song.fileName
+                    if song.Artist!= "Various":
+                        dictionary['oldArtist'] = song.Artist
+                    else:
+                        dictionary['oldArtist'] = ""
+                    if song.Title != "Various":
+                        dictionary['oldTitle'] = song.Title
+                    else:
+                        dictionary['oldTitle'] = ""
+                    if pygame.mixer.get_init() and play_list.validFiles.index(song) == play_list.currentSongIndex and pygame.mixer.music.get_busy():
+                        pygame.mixer.music.stop()
+                        pygame.mixer.music.load("clear.mp3") #use this file to release the playback
+                    if "-" in song.fileName:
+                        value = song.fileName.split("-")
+                        song.Artist = value[0].strip(" ")
+                        value[1] = value[1].strip(" ")
+                        song.Title = value[1].rstrip(".mp3 ")
+                        mp3file["artist"] = song.Artist
+                        mp3file["title"] = song.Title
+                        dictionary["newArtist"] = song.Artist
+                        dictionary["newTitle"] = song.Title
+                    else:
+                        song.Artist = value[0].strip(" ").rstrip(".mp3 ")
+                        mp3file["artist"] = song.Artist
+                        dictionary["newArtist"] = song.Artist
+                        dictionary["newTitle"] = ""
+                    dict_list.append(dictionary)
+                    dictionary = {}
+                    mp3file.save(v2_version=3)
+            else: #this branch should never be reached
+                messagebox.showinfo("Information", "The name should not be empty.")
+        self.ArtistTag.delete(0, tk.END)
+        self.ArtistTag.insert(0, self.Song.Artist)
+        self.TitleTag.delete(0, tk.END)
+        self.TitleTag.insert(0, self.Song.Title)
+        pickle.dump(dict_list, file)
+        file.close()
+        if os.path.isfile(self.undoArtistTitleBackupFile) and play_list.useMassFileEditor:
+            self.undoMassArtistTitleComposeButton.config(state = tk.NORMAL)
+        else:
+            self.undoMassArtistTitleComposeButton.config(state = tk.DISABLED)
+    
+    def undoComposeArtistTitleAll(self):
+        dict_list=[]
+        try:
+            file = open(self.undoArtistTitleBackupFile, "rb")
+            dict_list = pickle.load(file)
+            file.close()
+        except Exception as exp:
+            dict_list = [] #make sure it's empty
+            print("Backup File Exception: " + str(exp))
+            print("File: " + str(self.undoArtistTitleBackupFile)+ " might be corrupted.")
+        for song in play_list.validFiles:
+            for element in dict_list:
+                if element['fileName'] == song.fileName:
+                    if pygame.mixer.get_init() and play_list.validFiles.index(song) == play_list.currentSongIndex and pygame.mixer.music.get_busy():
+                        pygame.mixer.music.stop()
+                        pygame.mixer.music.load("clear.mp3") #use this file to release the playback
+                    mp3file = EasyID3(song.filePath)
+                    song.Artist = element['oldArtist']
+                    song.Title = element['oldTitle']
+                    mp3file["artist"] = song.Artist
+                    mp3file["title"] = song.Title
+                    if song.Artist == "":
+                        song.Artist = "Various"
+                    if song.Title == "":
+                        song.Title = "Various"
+                    mp3file.save(v2_version=3)
+                    del dict_list[dict_list.index(element)]
+                    break
+        if len(dict_list) > 0 :
+            message = ""
+            for element in dict_list:
+                message += element['fileName'] + "\n"
+            messagebox.showinfo("Information", "Some files not found within playlist:\n" + message)
+        self.ArtistTag.delete(0, tk.END)
+        self.ArtistTag.insert(0, self.Song.Artist)
+        self.TitleTag.delete(0, tk.END)
+        self.TitleTag.insert(0, self.Song.Title)
+        file = open(self.undoArtistTitleBackupFile, "wb")
+        pickle.dump(dict_list, file)
+        file.close()
+
+    def renameAllFiles(self):  # to be tested
+        dictionary = {}
+        dict_list = []
+        dict_loaded = False
+        if os.path.exists(self.undoRenameBackupFile):
+            try:
+                file = open(self.undoRenameBackupFile, "rb")
+                dict_list = pickle.load(file)
+            except Exception:
+                dict_list = [] #make sure the list is empty now
+                print("Exception when reading the content of File: " + str(self.undoRenameBackupFile))
+                print("Since the content has been corrupted, your file will be replaced.")
+            else:
+                dict_loaded = True
+                file.close()
+            finally:
+                file = open(self.undoRenameBackupFile, "wb")
+        else:
+            file = open(self.undoRenameBackupFile, "wb")
+        for song in play_list.validFiles:
+            if song.Artist != "Various" and song.Title != "Various":
+                newFileName = song.Artist + " - " + song.Title + ".mp3"
+                pathToFile = song.filePath.split(song.fileName)
+                pathToFile = pathToFile[0]
+                alreadyContained = False
+                if dict_loaded:
+                    for element in dict_list:
+                        if element['newName'] == pathToFile + newFileName:
+                            alreadyContained = True
+                            break
+                if alreadyContained == False and os.path.exists(song.filePath):
+                    dictionary['oldName'] = song.filePath
+                    dictionary['newName'] = pathToFile + newFileName
+                    dict_list.append(dictionary)
+                    dictionary = {}
+                    try:
+                        if pygame.mixer.get_init():
+                            if play_list.validFiles.index(
+                                    song) == play_list.currentSongIndex and pygame.mixer.music.get_busy():  # enter here if the file to be renamed is currently playing
+                                play_list.isSongPause = True
+                                pygame.mixer.music.stop()
+                                shutil.copy(song.filePath,
+                                            pathToFile + newFileName)  # make a copy of this file to the project locaiton
+                                fileToRemove = song.filePath
+                                song.fileName = newFileName  # this will update the play_list with the new song info
+                                song.filePath = pathToFile + newFileName
+                                pygame.mixer.music.load(
+                                    song.filePath)  # load the new file in the player, so that the old one gets released
+                                os.remove(fileToRemove)  # remove the old one
+                        else:
+                            os.rename(song.filePath, pathToFile + newFileName)  # this will rename the file
+                            song.fileName = newFileName  # this will update the play_list with the new song info
+                            song.filePath = pathToFile + newFileName
+                    except Exception as Exp:
+                        print("Exception during Mass Rename: " + str(Exp))
+        displayElementsOnPlaylist()
+        self.NameTag.delete(0, tk.END)
+        self.NameTag.insert(0, self.Song.fileName)
+        pickle.dump(dict_list, file)
+        file.close()
+        if os.path.isfile(self.undoRenameBackupFile) and play_list.useMassFileEditor:
+            self.undoMassRenameButton.config(state=tk.NORMAL)
+        else:
+            self.undoMassRenameButton.config(state=tk.DISABLED)
+
+    def restorePreviousNames (self): # to be tested
+        global play_list
+        dict_list=[]
+        message = ""
+        try:
+            file = open(self.undoRenameBackupFile, "rb")
+            dict_list = pickle.load(file)
+            file.close()
+        except Exception as exp:
+            dict_list = [] #make sure it's empty
+            print("Backup File Exception: " + exp)
+            print("File: " + str(self.undoRenameBackupFile)+ " might be corrupted.")
+        for song in play_list.validFiles:
+            for element in dict_list:
+                if element['newName'] == song.filePath:
+                    filePath = element['newName'].split(song.fileName)
+                    filePath = filePath[0]
+                    FileName = element['oldName'].split(filePath)
+                    FileName = FileName[1]
+                    try:
+                        if pygame.mixer.get_init():
+                            if play_list.validFiles.index(song) == play_list.currentSongIndex and pygame.mixer.music.get_busy():  # enter here if the file to be renamed is currently playing
+                                play_list.isSongPause = True
+                                pygame.mixer.music.stop()
+                                shutil.copy(song.filePath, element['oldName'])  # make a copy of this file to the project locaiton
+                                fileToRemove = song.filePath
+                                song.fileName = FileName  # this will update the play_list with the new song info
+                                song.filePath = element['oldName']
+                                pygame.mixer.music.load(song.filePath)  # load the new file in the player, so that the old one gets released
+                                os.remove(fileToRemove)  # remove the old one
+                        else:
+                            os.rename(song.filePath, element['oldName'])  # this will rename the file
+                            song.fileName = FileName  # this will update the play_list with the new song info
+                            song.filePath = element['oldName']
+                    except Exception as Exp:
+                        print("Exception during Undo Mass Rename: " + str(Exp))
+                    del dict_list[dict_list.index(element)]
+                    break
+                if dict_list.index(element) == len(dict_list)-1 and element['newName'] != song.filePath:
+                    message += song.fileName + "\n"
+        displayElementsOnPlaylist()
+        self.NameTag.delete(0, tk.END)
+        self.NameTag.insert(0, self.Song.fileName)
+        file = open(self.undoRenameBackupFile, "wb")
+        pickle.dump(dict_list, file)
+        file.close()
+        if message!="":
+            messagebox.showinfo("Information","Some file were not renamed: \n" + message)
+        
     def NameCapitalizer(self):
         if "-" in self.NameTag.get():
             value = self.NameTag.get()
@@ -1108,6 +1596,11 @@ class Mp3TagModifierTool: #not yet properly working
                     title += word.capitalize() + " "
                 else:
                     title += word.capitalize()
+            
+            if len(value) > 2:
+                title+=" "
+                for i in range(2, len(value)):
+                    title+= value[i].capitalize() + " "
             title = title.strip(" ")  # remove the last blank space
             artist = artist.strip(" ")
             if ".mp3" in title:
@@ -1116,35 +1609,39 @@ class Mp3TagModifierTool: #not yet properly working
                 value = artist + " - " + title + ".mp3"
             self.NameTag.delete(0, tk.END)
             self.NameTag.insert(0, value)
+        else:
+            value = self.NameTag.get()
+            value = value.split(" ")
+            newValue = ""
+            for element in value:
+                newValue += element.strip(" ").capitalize() + " "
+            self.NameTag.delete(0, tk.END)
+            self.NameTag.insert(0, newValue.rstrip(" ")) 
 
-    def checkUncheckArtistTitleComposal(self, event=None):
-        self.ComposeNameCheckButtonVar.set(0)
-        if self.ComposeArtistTitleCheckButtonVar.get() == 1:
-            if self.NameTag.get() != "":
-                if "-" in self.NameTag.get():
-                    value = self.NameTag.get()
-                    value = value.split("-")
-                    self.ArtistTag.delete(0,tk.END)
-                    self.ArtistTag.insert(0, value[0].strip(" "))
-                    self.TitleTag.delete(0, tk.END)
-                    value[1] = value[1].strip(" ") #remove any whitespaces at the beginning, or end
-                    self.TitleTag.insert(0, value[1].rstrip(".mp3"))
-                else:
-                    self.ArtistTag.delete(0, tk.END)
-                    self.ArtistTag.insert(0, self.NameTag.get().rstrip(".mp3 "))
+    def composeArtistTitle(self):
+        if self.NameTag.get() != "":
+            if "-" in self.NameTag.get():
+                value = self.NameTag.get()
+                value = value.split("-")
+                self.ArtistTag.delete(0,tk.END)
+                self.ArtistTag.insert(0, value[0].strip(" "))
+                self.TitleTag.delete(0, tk.END)
+                value[1] = value[1].strip(" ") #remove any whitespaces at the beginning, or end
+                self.TitleTag.insert(0, value[1].rstrip(".mp3"))
             else:
-                messagebox.showinfo("Information", "The name should not be empty.")
+                self.ArtistTag.delete(0, tk.END)
+                self.ArtistTag.insert(0, self.NameTag.get().rstrip(".mp3 "))
+        else:
+            messagebox.showinfo("Information", "The name should not be empty.")
 
-    def checkUncheckNameComposal(self, event=None):
-        self.ComposeArtistTitleCheckButtonVar.set(0)
-        if self.ComposeNameCheckButtonVar.get() == 1:
-            if self.ArtistTag.get() != "Various" and self.TitleTag.get() != "Various":
-                self.NameTag.delete(0,tk.END)
-                self.NameTag.insert(0, self.ArtistTag.get() + " - " + self.TitleTag.get())
-            else:
-                messagebox.showinfo("Information", "The Artist Name nor the Title should be 'Various'.")
+    def composeFileName(self):
+        if self.ArtistTag.get() != "Various" and self.TitleTag.get() != "Various":
+            self.NameTag.delete(0,tk.END)
+            self.NameTag.insert(0, self.ArtistTag.get() + " - " + self.TitleTag.get())
+        else:
+            messagebox.showinfo("Information", "The Artist Name nor the Title should be 'Various'.")
 
-    def CapitalizeMainWordsOnly(self):
+    def NameSemiCapitalizer(self):
         if "-" in self.NameTag.get():
             value = self.NameTag.get()
             value = value.split("-")
@@ -1159,6 +1656,10 @@ class Mp3TagModifierTool: #not yet properly working
                     title = word.capitalize() + " "
                 else:
                     title += word.lower() + " "
+            
+            if len(value) > 2:
+                for i in range(2, len(value)):
+                    title+= value[i].lower() + " "
             title = title.strip(" ") #remove the last blank space
             artist = artist.strip(" ")
             if ".mp3" in title:
@@ -1167,13 +1668,18 @@ class Mp3TagModifierTool: #not yet properly working
                 value = artist + " - " + title + ".mp3"
             self.NameTag.delete(0, tk.END)
             self.NameTag.insert(0, value)
+        else:
+            value = self.NameTag.get()
+            value = value.capitalize()
+            self.NameTag.delete(0, tk.END)
+            self.NameTag.insert(0, value) 
 
     def SaveChanges(self):
         global play_list
         pathToFile = self.Song.filePath.split(self.Song.fileName)
         pathToFile = pathToFile[0]
         index = play_list.validFiles.index(self.Song)
-        if ".mp3" not in self.NameTag.get():
+        if ".mp3" not in self.NameTag.get().lower():
             value = self.NameTag.get()
             self.NameTag = StringVar()
             self.NameTag.set(value + ".mp3")
@@ -1199,46 +1705,23 @@ class Mp3TagModifierTool: #not yet properly working
                 else: #will enter here is used Capitalize Filename Option
                     pygame.mixer.music.stop()
                     pygame.mixer.music.load("clear.mp3") #use this file to release the playback
-                    os.rename(self.Song.filePath, pathToFile + self.NameTag.get())  # this will rename the file
+                    if self.Song.filePath != pathToFile + self.NameTag.get():
+                        os.rename(self.Song.filePath, pathToFile + self.NameTag.get())  # this will rename the file
+                        self.Song.fileName = self.NameTag.get()  # this will update the play_list with the new song info
+                        self.Song.filePath = pathToFile + self.NameTag.get()
                     self.saveMp3Tags()
-                    self.Song.fileName = self.NameTag.get()  # this will update the play_list with the new song info
-                    self.Song.filePath = pathToFile + self.NameTag.get()
                     pygame.mixer.music.load(self.Song.filePath)
                     displayElementsOnPlaylist()
                     play_music()
             else:
-                os.rename(self.Song.filePath, pathToFile + self.NameTag.get()) #this will rename the file
-                self.Song.fileName = self.NameTag.get() # this will update the play_list with the new song info
-                self.Song.filePath = pathToFile + self.NameTag.get()
+                if self.Song.filePath != (pathToFile + self.NameTag.get()):
+                    os.rename(self.Song.filePath, pathToFile + self.NameTag.get()) #this will rename the file
+                    self.Song.fileName = self.NameTag.get() # this will update the play_list with the new song info
+                    self.Song.filePath = pathToFile + self.NameTag.get()
                 self.saveMp3Tags()
                 displayElementsOnPlaylist()
         except Exception as Exp:
             print("Exception during File Tag Update: " + str(Exp))
-
-    def renameAllFiles(self):
-        for song in play_list.validFiles:
-            if song.Artist != "Various" and song.Title != "Various":
-                newFileName = song.Artist + " - " + song.Title + ".mp3"
-                pathToFile = song.filePath.split(song.fileName)
-                pathToFile = pathToFile[0]
-                try:
-                    if pygame.mixer.get_init():
-                        if play_list.validFiles.index(song) == play_list.currentSongIndex and pygame.mixer.music.get_busy():  # enter here if the file to be renamed is currently playing
-                            play_list.isSongPause = True
-                            pygame.mixer.music.stop()
-                            shutil.copy(song.filePath, pathToFile + newFileName)  # make a copy of this file to the project locaiton
-                            fileToRemove = song.filePath
-                            song.fileName = newFileName  # this will update the play_list with the new song info
-                            song.filePath = pathToFile + newFileName
-                            pygame.mixer.music.load(pathToFile + song.filePath)  # load the new file in the player, so that the old one gets released
-                            os.remove(fileToRemove)  # remove the old one
-                    else:
-                        os.rename(song.filePath, pathToFile + newFileName)  # this will rename the file
-                        song.fileName = newFileName  # this will update the play_list with the new song info
-                        song.filePath = pathToFile + newFileName
-                except Exception as Exp:
-                    print("Exception during Mass Rename: " + str(Exp))
-        displayElementsOnPlaylist()
 
     def destroy(self):
         global dialog
@@ -1280,11 +1763,454 @@ class Mp3TagModifierTool: #not yet properly working
     def take_focus(self):
         self.top.wm_attributes("-topmost", 1)
         self.top.grab_set()
-        self.searchValue.focus_force()
+        self.NameTag.focus_force()
 
-automaticallyBackupFile = "backup.pypl"
+class GrabLyricsTool:
+    def __init__(self, index="empty"):
+        global allButtonsFont
+        global dialog
+        self.LyricsDownloads = "LyricsDownloads.lyl"
+        if index=="empty":
+            index = play_list.currentSongIndex # do not forget that currentSongIndex can be None
+        self.songIndex = index
+        if self.songIndex != None: # make sure there is a song to search lyrics for.
+            color = OpenFileButton["bg"]  # get the color which the rest of elements is using at the moment
+            self.top = tk.Toplevel(window, bg=color)
+            Window_Title = "Grab Lyrics Tool"
+            self.top.title(Window_Title)
+            self.top.geometry("540x550+100+100")
+            self.top.protocol("WM_DELETE_WINDOW", self.destroy)
+            self.top.attributes('-alpha', play_list.windowOpacity)
+            allButtonsFont = skinOptions[2][play_list.skin]
+            self.welcomeMessage = StringVar()
+            self.welcomeMessage.set("Welcome to Grab Lyrics Tool!\n\nThe lyrics are grabbed from various online sources,\n" \
+                                +"the results are provided according to your internet connection speed.\n" \
+                                +"The Search is based on Artist - Title tags, if these tags are not set\n" \
+                                +"accordingly, the lyrics will never be found.")
+            tk.Label(self.top, textvariable=self.welcomeMessage, fg=fontColor.get(), font=allButtonsFont, bg=color).place(x=5, y=5)
+            self.Lyrics = StringVar()
+            self.Lyrics.set("Lyrics")
+            tk.Label(self.top, textvariable=self.Lyrics, fg=fontColor.get(), font=allButtonsFont, bg=color).place(x=5, y=115)
+            self.frame = tk.Frame(self.top, width=100, height=30, bg=color, borderwidth=1)
+            self.frame.place(x=10, y=135)
+            self.scrlbar = tk.Scrollbar(self.frame, orient="vertical", width=10)
+            self.listboxLyrics = tk.Listbox(self.frame, fg=fontColor.get(), font=allButtonsFont, width=65, bg=color, height=20, \
+                         yscrollcommand=self.scrlbar.set)
+            self.listboxLyrics.pack(padx=10, pady=10,side = tk.LEFT, fill=tk.X)
+            self.scrlbar.config(command=self.listboxLyrics.yview)
+            self.scrlbar.pack(side=tk.RIGHT, fill=tk.Y)
+            self.SaveLyrics = tk.Button(self.top, text="Save Lyrics",command=self.saveLyrics, fg=fontColor.get(), font=allButtonsFont,
+                                              bg=color, state=tk.DISABLED)
+            self.SaveLyrics.place(x=10,y=500)
+
+            self.RemoveLyrics = tk.Button(self.top, text="Remove Lyrics", command=self.removeLyrics, fg=fontColor.get(),
+                                        font=allButtonsFont,
+                                        bg=color, state=tk.DISABLED)
+            self.RemoveLyrics.place(x=120, y=500)
+
+            self.DownloadLyricsAll = tk.Button(self.top, text="Download All Lyrics", command=self.downloadAllLyrics, fg=fontColor.get(),
+                                          font=allButtonsFont,
+                                          bg=color)
+            self.DownloadLyricsAll.place(x=260, y=500)
+            self.top.bind("<Tab>", self.focus_out)
+            self.top.bind("<Escape>", self.destroyEsc)
+            if os.path.exists(self.LyricsDownloads):
+                try:
+                    file = open(self.LyricsDownloads, "rb")
+                    lyricsList = pickle.load(file)
+                    file.close()
+                    for element in lyricsList:
+                        if element["fileName"] == play_list.validFiles[self.songIndex].fileName:
+                            for line in element["lyrics_list"]:
+                                self.listboxLyrics.insert(tk.END, line)
+                            self.Lyrics.set("Lyrics for '" + play_list.validFiles[self.songIndex].Artist + " - " \
+                                            + play_list.validFiles[self.songIndex].Title + "' -> were found locally:")
+                            self.RemoveLyrics.config(state=tk.NORMAL)
+                            break
+                    if self.listboxLyrics.size() == 0: #lyrics not found.
+                        self.LyricsDisplay()
+                except Exception:
+                    print("Could not load the file: " + self.LyricsDownloads)
+                    print("I will search for lyrics online.")
+                    self.LyricsDisplay()
+            else:
+                self.LyricsDisplay()
+            dialog = self
+
+    def downloadAllLyrics(self):
+        for i in range(0, len(play_list.validFiles)):
+            self.songIndex = i
+            text_list, source = self.accessPage()
+            if len(text_list) > 0 and source != "":
+                self.saveLyrics(text_list)
+            else:
+                print("Lyrics not found for: " + play_list.validFiles[self.songIndex].fileName)
+
+    def removeLyrics(self):
+        filename = play_list.validFiles[self.songIndex].fileName
+        lyrics_dictionary = {}
+        lyricsList = []
+        if os.path.exists(self.LyricsDownloads):
+            try:
+                file = open(self.LyricsDownloads, "rb")
+                lyricsList = pickle.load(file)
+                file.close()
+            except Exception:
+                print("Could not load the file: " + self.LyricsDownloads)
+        if len(lyricsList) > 0:
+            for element in lyricsList:
+                if element["fileName"] == filename:
+                    del lyricsList[lyricsList.index(element)]
+                    messagebox.showinfo("Info", "The lyrics for this song were removed.")
+                    break
+            try:
+                file = open(self.LyricsDownloads, "wb")
+                pickle.dump(lyricsList, file)
+                file.close()
+                self.RemoveLyrics.config(state=tk.DISABLED)
+                self.SaveLyrics.config(state=tk.NORMAL)
+            except Exception:
+                print("Could not remove Lyrics for: " + filename)
+
+    def saveLyrics(self, list_text=None):
+        filename = play_list.validFiles[self.songIndex].fileName
+        lyrics_dictionary = {}
+        lyricsList = []
+        if os.path.exists(self.LyricsDownloads):
+            try:
+                file = open(self.LyricsDownloads, "rb")
+                lyricsList = pickle.load(file)
+                file.close()
+            except Exception:
+                print("Could not load the file: " + self.LyricsDownloads)
+        alreadyContained = False
+        if len(lyricsList) > 0:
+            for element in lyricsList:
+                if element["fileName"] == filename:
+                    alreadyContained = True
+                    messagebox.showinfo("Info", "This lyrics are already stored in your local computer.")
+                    break
+        if alreadyContained == False:
+            lyrics_dictionary["fileName"] = filename
+            if list_text == None:
+                lyrics_dictionary["lyrics_list"] = list(self.listboxLyrics.get(0,tk.END))
+            else:
+                lyrics_dictionary["lyrics_list"] = list_text
+            lyricsList.append(lyrics_dictionary)
+            lyrics_dictionary={}
+            del lyrics_dictionary
+            try:
+                file = open(self.LyricsDownloads, "wb")
+                pickle.dump(lyricsList, file)
+                file.close()
+                self.RemoveLyrics.config(state=tk.NORMAL)
+            except Exception:
+                print("Could not save Lyrics for: " + filename)
+
+    def accessPage(self):
+        urllib3.disable_warnings()
+        text_list = []
+        source = ""
+        if play_list.validFiles[self.songIndex].Artist != "Various" and play_list.validFiles[
+            self.songIndex].Title != "Various":
+            artist = play_list.validFiles[self.songIndex].Artist
+            artist = artist.replace(" ", "-")
+            title = play_list.validFiles[self.songIndex].Title
+            title = title.replace(" ", "-")
+            if play_list.LyricsActiveSource == "all":
+                url = "http://www.lyrics.my/artists/" + artist + "/lyrics/" + title  # this is possible to change with time. Let's hope it doesn't
+                http = urllib3.PoolManager()
+                response = http.request('GET', url)
+                if response.status == 200:
+                    text_list = self.filterTextFromLyricsMy(response.data)
+                    source = "lyrics.my"
+                else:
+                    url = "https://genius.com/" + artist + "-" + title + "-lyrics"  # this is possible to change with time. Let's hope it doesn't
+                    # The URL system for genius.com is structured like this at the moment.
+                    http = urllib3.PoolManager()
+                    response = http.request('GET', url)
+                    if response.status == 200:
+                        text_list = self.filterTextFromGeniusCom(response.data)
+                        source = "genius.com"
+            elif play_list.LyricsActiveSource == "lyrics.my":
+                url = "http://www.lyrics.my/artists/" + artist + "/lyrics/" + title  # this is possible to change with time. Let's hope it doesn't
+                http = urllib3.PoolManager()
+                response = http.request('GET', url)
+                if response.status == 200:
+                    text_list = self.filterTextFromLyricsMy(response.data)
+                    source = "lyrics.my"
+            elif play_list.LyricsActiveSource == "genius.com":
+                url = "https://genius.com/" + artist + "-" + title + "-lyrics"  # this is possible to change with time. Let's hope it doesn't
+                # The URL system for genius.com is structured like this at the moment.
+                http = urllib3.PoolManager()
+                response = http.request('GET', url)
+                if response.status == 200:
+                    text_list = self.filterTextFromGeniusCom(response.data)
+                    source = "genius.com"
+        return text_list, source
+
+    def filterTextFromGeniusCom(self, data):
+        text = BeautifulSoup(data, "html.parser")
+        text = text.decode("utf-8")
+        # Start filtering the html content of the webpage
+        text = text.split('<div class="lyrics">')
+        text = text[1].split('</div>')
+        text = text[0]
+        text = text.replace("   ", "")
+        text = text.replace("\n ", "\n")
+
+        text = text.replace("<p>", "")
+        text = text.replace("<b>", "")
+        text = text.replace("</b>", "")
+        text = text.replace("<i>", "")
+        text = text.replace("</i>", "")
+        text = text.replace("<!--sse-->", "")
+        text = text.replace("<!--/sse-->", "")
+        text = text.replace("</p>", "")
+        text = text.replace("<br>", "")
+        text = text.replace("<br/>", "")
+        text = text.replace("[", "")
+        text = text.replace("]", "")
+
+        if "<a annotation-fragment" in text:  # if there are any adds between these lyrics, lets remove them.
+            text = text.split("<a annotation-fragment=")
+            aux = []
+            for element in text:
+                if 'prevent-default-click="">' in element:
+                    element = element.split('prevent-default-click="">')
+                    aux.append(element[1])
+                else:
+                    aux.append(element)
+            text = "".join(aux)
+            text = text.replace("</a>", "")
+
+        newText = ""
+        list_text = []
+        for i in range(0, len(text)):
+            if (text[i] >= "A" and text[i] <= "Z") or (text[i] >= "a" and text[i] <= "z") or (
+                    text[i] >= "0" and text[i] <= "9"):
+                newText += text[i]
+            elif text[i] == "\n":
+                if newText != "":
+                    list_text.append("    " + newText)
+                    newText = ""
+                if text[i - 1] == "\n" and text[i] == "\n" and text[i - 2] == "\n" and i > 3:
+                    list_text.append("")
+            elif i > 0:
+                if (text[i - 1] >= "A" and text[i - 1] <= "Z") or (text[i - 1] >= "a" and text[i - 1] <= "z") \
+                        or text[i - 1] == "," or text[i - 1] == ".":  # this is for word spacing.
+                    newText += text[i]
+        return list_text
+
+    def filterTextFromLyricsMy(self, data):
+        text = BeautifulSoup(data, "html.parser")
+        text = text.decode("utf-8")
+        # Start filtering the html content of the webpage
+        text = text.split('<div class="show_lyric">')
+        text = text[1].split('</div>')
+        text = text[0]
+        text = text.replace("   ", "")
+        text = text.replace("\n ", "\n")
+
+        text = text.replace("<p>", "")
+        text = text.replace("<b>", "")
+        text = text.replace("</b>", "")
+        text = text.replace("<i>", "")
+        text = text.replace("</i>", "")
+        text = text.replace("</p>", "")
+        text = text.replace("<br>", "")
+        text = text.replace("</br>", "")
+        text = text.replace("<br/>", "")
+        text = text.replace("[", "(")
+        text = text.replace("]", ")")
+        newText = ""
+        list_text = []
+        for i in range(0, len(text)):
+            if (text[i] >= "A" and text[i] <= "Z") or (text[i] >= "a" and text[i] <= "z") or (
+                    text[i] >= "0" and text[i] <= "9") or text[i] == "(" or text[i] == ")":
+                newText += text[i]
+            elif text[i] == "\n":
+                if newText != "":
+                    list_text.append("    " + newText)
+                    newText = ""
+                if newText =="" and len(list_text)>1 and list_text[(len(list_text)-1)]!="" and list_text[(len(list_text)-2)]!="":
+                    list_text.append("")
+            elif i > 0:
+                if (text[i - 1] >= "A" and text[i - 1] <= "Z") or (text[i - 1] >= "a" and text[i - 1] <= "z") \
+                        or text[i - 1] == "," or text[i - 1] == "." or text[i - 1] == "?" or text[i - 1] == "!":  # this is for word spacing.
+                    newText += text[i]
+        return list_text
+
+    def LyricsDisplay(self): #to be continued
+        text_list, source = self.accessPage()
+        if len(text_list) > 0:
+            self.Lyrics.set("Lyrics for '" + play_list.validFiles[self.songIndex].Artist + " - " \
+                            + play_list.validFiles[self.songIndex].Title + "' -> were found on " + source + ":")
+            for element in text_list:
+                self.listboxLyrics.insert(tk.END, element)
+            self.SaveLyrics.config(state=tk.NORMAL)
+        else:
+            self.Lyrics.set("Lyrics for '" + play_list.validFiles[self.songIndex].Artist + " - " \
+                            + play_list.validFiles[self.songIndex].Title + "' -> were NOT found!\n" +
+                            "Make sure you have Artist and Title Tags completed properly.")
+    
+    def destroy(self):
+        global dialog
+        self.top.destroy()
+        dialog = None
+
+    def destroyEsc(self,event):
+        self.destroy()
+
+    def take_focus(self):
+        self.top.wm_attributes("-topmost", 1)
+        self.top.grab_set()
+    
+    def focus_out(self, event):
+        window.wm_attributes("-topmost", 1)
+        window.grab_set()
+        window.focus_force()
+
+class GrabArtistBio():
+    def __init__(self, index="empty"):
+        global allButtonsFont
+        global dialog
+        self.LyricsDownloads = "LyricsDownloads.lyl"
+        if index == "empty":
+            index = play_list.currentSongIndex  # do not forget that currentSongIndex can be None
+        self.songIndex = index
+        if self.songIndex != None:  # make sure there is a song to search lyrics for.
+            color = OpenFileButton["bg"]  # get the color which the rest of elements is using at the moment
+            self.top = tk.Toplevel(window, bg=color)
+            Window_Title = "Artist Bio"
+            self.top.title(Window_Title)
+            self.top.geometry("440x350+100+100")
+            self.top.protocol("WM_DELETE_WINDOW", self.destroy)
+            self.top.attributes('-alpha', play_list.windowOpacity)
+            allButtonsFont = skinOptions[2][play_list.skin]
+            self.Message = StringVar()
+            self.Message.set(
+                "According to LastFM:\n\n")
+            tk.Label(self.top, textvariable=self.Message, fg=fontColor.get(), font=allButtonsFont,
+                     bg=color).place(x=5, y=5)
+            self.BioText = StringVar()
+            self.BioText.set("Artist Bio:")
+            tk.Label(self.top, textvariable=self.BioText, fg=fontColor.get(), font=allButtonsFont, bg=color).place(x=15, y=45)
+            self.frame = tk.Frame(self.top, width=100, height=30, bg=color, borderwidth=1)
+            self.frame.place(x=5, y=65)
+            self.scrlbar = tk.Scrollbar(self.frame, orient="vertical", width=10)
+            self.listboxLyrics = tk.Listbox(self.frame, fg=fontColor.get(), font=allButtonsFont, width=55, bg=color,
+                                            height=15, \
+                                            yscrollcommand=self.scrlbar.set)
+            self.listboxLyrics.pack(padx=10, pady=10, side=tk.LEFT, fill=tk.X)
+            self.scrlbar.config(command=self.listboxLyrics.yview)
+            self.scrlbar.pack(side=tk.RIGHT, fill=tk.Y)
+            self.ArtistBioDisplay()
+            self.top.bind("<Tab>", self.focus_out)
+            self.top.bind("<Escape>", self.destroyEsc)
+            dialog = self
+
+    def accessPage(self):
+        urllib3.disable_warnings()
+        text_list = []
+        if play_list.validFiles[self.songIndex].Artist != "Various":
+            artist = play_list.validFiles[self.songIndex].Artist
+            artist = artist.replace(" ", "_")
+            if play_list.LyricsActiveSource == "all":
+                url = "https://www.last.fm/music/" + artist + "/+wiki" # this is possible to change with time. Let's hope it doesn't
+                http = urllib3.PoolManager()
+                response = http.request('GET', url)
+                if response.status == 200:
+                    text_list = self.filterTextFromWikipedia(response.data)
+        return text_list
+
+    def filterTextFromWikipedia(self, data):
+        text = BeautifulSoup(data, "html.parser")
+        text = text.decode("utf-8")
+        # Start filtering the html content of the webpage
+        text = text.split('<div class="wiki-content" itemprop="description">')
+        text = text[1].split('</div>')
+        text = text[0]
+        text = text.replace("   ", "")
+
+        text = text.replace("<a>", "")
+        text = text.replace("</a>", "")
+        text = text.replace("<b>", "")
+        text = text.replace("</b>", "")
+        text = text.replace("<p>", "")
+        text = text.replace("</p>", "")
+        text = text.replace("<strong>", "")
+        text = text.replace("</strong>", "")
+        text = text.replace("<em>", "")
+        text = text.replace("</em>", "")
+        text = text.replace("<i>", "")
+        text = text.replace("</i>", "")
+        if "<a " in text:  # if there are any adds between these lyrics, lets remove them.
+            text = text.split("<a ")
+            aux = []
+            for element in text:
+                if '">' in element:
+                    element = element.split('">')
+                    aux.append(element[1] + " ")
+                else:
+                    aux.append(element)
+            text = "".join(aux)
+            text = text.replace("</a>", "")
+        if "<sup " in text:  # if there are any adds between these lyrics, lets remove them.
+            text = text.split("<sup ")
+            aux = []
+            for element in text:
+                if '</sup>' in element:
+                    element = element.split('</sup>')
+                    aux.append(element[1])
+                else:
+                    aux.append(element)
+            text = "".join(aux)
+            text = text.replace("</a>", "")
+        newText = ""
+        list_text = []
+        for i in range(0, len(text)):
+            if text[i] != "\n":
+                newText += text[i]
+            if text[i] == "." and len(list_text)%5==0: #make a new paragraph after each 5 sentences.
+                list_text.append(newText)
+                newText = ""
+                list_text.append("") #add an empty line
+            elif len(newText)>=45 and (text[i]==" " or text[i] =="-"):
+                list_text.append(newText)
+                newText=""
+        return list_text
+
+    def ArtistBioDisplay(self): #to be continued
+        text_list = self.accessPage()
+        if len(text_list) > 0:
+            for element in text_list:
+                self.listboxLyrics.insert(tk.END, element)
+        else:
+            self.listboxLyrics.insert(tk.END, "No information found")
+
+    def destroy(self):
+        global dialog
+        self.top.destroy()
+        dialog = None
+
+    def destroyEsc(self, event):
+        self.destroy()
+
+    def take_focus(self):
+        self.top.wm_attributes("-topmost", 1)
+        self.top.grab_set()
+
+    def focus_out(self, event):
+        window.wm_attributes("-topmost", 1)
+        window.grab_set()
+        window.focus_force()
+        
+automaticallyBackupFile = "PlayListBackup.pypl"
 allButtonsWidth = 14
 allButtonsHeight = 1
+
+LyricsOnlineSources = ["all", "genius.com", "lyrics.my"]
 
 custom_color_list = ["green", "yellow", "purple", "black", "brown", "sienna", "cyan", "magenta", "pink", "blue", "darkblue", "darkgreen", "deeppink", "red", \
                                             "orange", "gold", "silver", "indigo"]
@@ -1316,7 +2242,7 @@ def load_file():
     if fileToPlay:
         fileToPlay = list(fileToPlay)
         for file in fileToPlay:
-            if ".mp3" in file:
+            if ".mp3" in file.lower():
                 fileName = re.split("/", file)
                 fileName = fileName[len(fileName) - 1]
                 fileSize = os.path.getsize(file) / (1024 * 1024)
@@ -1339,6 +2265,7 @@ def loadPlaylistFile(fileURL):
     try:
         file = open(fileURL, "rb")
         content = pickle.load(file)
+        file.close()
     except Exception as exp:
         print("Load Playlist File Exception: " + exp)
         print("File: " + str(fileURL)+ " might be corrupted.")
@@ -1403,6 +2330,10 @@ def loadPlaylistFile(fileURL):
                 songLength = float("{0:.0f}".format(play_list.validFiles[play_list.currentSongIndex].Length))  # no decimals needed
                 textLength.set("Length: {:0>8}".format(str(datetime.timedelta(seconds=songLength))))
                 textGenre.set("Genre: " + str(play_list.validFiles[play_list.currentSongIndex].Genre))
+                textArtist.set("Artist: " + str(play_list.validFiles[play_list.currentSongIndex].Artist))
+                textAlbum.set("Album: " + str(play_list.validFiles[play_list.currentSongIndex].Album))
+                textTitle.set("Title: " + str(play_list.validFiles[play_list.currentSongIndex].Title))
+                textYear.set("Year: " + str(play_list.validFiles[play_list.currentSongIndex].Year))
                 startPos = int(play_list.validFiles[play_list.currentSongIndex].startPos)
                 textStartTime.set("Start Time: {:0>8}".format(str(datetime.timedelta(seconds=startPos))))
                 endPos = int(play_list.validFiles[play_list.currentSongIndex].endPos)
@@ -1423,6 +2354,7 @@ def loadPlaylistFile(fileURL):
                 listBox_Song_selected_index = play_list.currentSongIndex
                 updateRadioButtons()
             updateSortButton()
+            progress["mode"] = play_list.ProgressBarType
             window.attributes('-alpha', play_list.windowOpacity) #set the opacity
             view_playlist(True)
             if play_list.SHUFFLE:
@@ -1457,7 +2389,7 @@ def searchFilesInDirectories(dir):
     global play_list
     for root, dirs, files in os.walk(dir):
         for file in files:
-            if ".mp3" in file:
+            if ".mp3" in file.lower():
                 fileSize = os.path.getsize(root + "/" + file) / (1024 * 1024)
                 fileSize = float("{0:.2f}".format(fileSize))
                 song = Song(file, root + "/" + file, fileSize)
@@ -1518,6 +2450,10 @@ def play_music():
             songLength = float("{0:.0f}".format(play_list.validFiles[play_list.currentSongIndex].Length))  # no decimals needed
             textLength.set("Length: {:0>8}".format(str(datetime.timedelta(seconds=songLength))))
             textGenre.set("Genre: " + str(play_list.validFiles[play_list.currentSongIndex].Genre))
+            textArtist.set("Artist: " + str(play_list.validFiles[play_list.currentSongIndex].Artist))
+            textAlbum.set("Album: " + str(play_list.validFiles[play_list.currentSongIndex].Album))
+            textTitle.set("Title: " + str(play_list.validFiles[play_list.currentSongIndex].Title))
+            textYear.set("Year: " + str(play_list.validFiles[play_list.currentSongIndex].Year))
             startPos = int(play_list.validFiles[play_list.currentSongIndex].startPos)
             textStartTime.set("Start Time: {:0>8}" .format(str(datetime.timedelta(seconds=startPos))))
             endPos = int(play_list.validFiles[play_list.currentSongIndex].endPos)
@@ -1686,8 +2622,9 @@ def viewProgress():
                     if time.time() - play_list.danthologyTimer >  play_list.danthologyDuration:
                         #Danthology
                         next_song()
-                if local_position >= play_list.validFiles[play_list.currentSongIndex].endPos:
+                if local_position >= math.floor(play_list.validFiles[play_list.currentSongIndex].endPos):
                     stop_music()
+                    play_list.isSongPause = False
                     play_list.isSongStopped = False #song is not stopped in this circumstances, song has finished
 
             else:
@@ -1707,8 +2644,9 @@ def viewProgress():
                         #Danthology
                         next_song()
                 if len(play_list.validFiles) > 0:
-                    if play_list.currentSongPosition >= play_list.validFiles[play_list.currentSongIndex].endPos:
+                    if play_list.currentSongPosition >= math.floor(play_list.validFiles[play_list.currentSongIndex].endPos):
                         stop_music()
+                        play_list.isSongPause = False
                         play_list.isSongStopped = False #song is not stopped in this circumstances, song has finished
             try:
                 window.update()  # Force an update of the GUI
@@ -1719,7 +2657,7 @@ def viewProgress():
                 #Make a backup of everything:
                 file = open(automaticallyBackupFile, "wb")
                 pickle.dump(play_list, file)
-
+                file.close()
                 sys.exit()
             else:
                 scheduler.enter(progressViewRealTime, 1, viewProgress)
@@ -1780,11 +2718,16 @@ def save_playlist():
             file = open(window.filename + ".pypl", "wb")
         play_list.currentSongPosition += (pygame.mixer.music.get_pos() / 1000)
         pickle.dump(play_list, file)
+        file.close()
 
 def clearLabels():
     textFilesToPlay.set("Files: " + str(len(play_list.validFiles)))
     textVolumeLevel.set("Volume Level: " + str(int(play_list.VolumeLevel * 100)) + "%")
     textGenre.set("Genre: ")
+    textArtist.set("Artist: ")
+    textAlbum.set("Album: ")
+    textTitle.set("Title: ")
+    textYear.set("Year: ")
     textFadeIn.set("FadeIn: ")
     textMonoStereoMode.set("Mode: ")
     textNofPlays.set("No. of Plays: ")
@@ -1933,6 +2876,10 @@ def changingBackgroundElementColor(event):
     labelSampleRate["fg"]=SkinColor.get()
     labelNofPlays["fg"]=SkinColor.get()
     labelDanthologyMode["fg"]=SkinColor.get()
+    labelArtist["fg"]=SkinColor.get()
+    labelAlbum["fg"]=SkinColor.get()
+    labelTitle["fg"]=SkinColor.get()
+    labelYear["fg"]=SkinColor.get()
     if type(dialog) == Customize: #if entered here means setting a custom color
         play_list.customElementBackground = custom_color_list.index(SkinColor.get())
         dialog.destroy()
@@ -2002,6 +2949,14 @@ def changeSkin(event):
             elif type(dialog) == Mp3TagModifierTool:
                     dialog.destroy()
                     Mp3TagModifierTool()
+            elif type(dialog) == GrabLyricsTool:
+                    index = dialog.songIndex # store the index of the song for which the lyrics are shown
+                    dialog.destroy()
+                    GrabLyricsTool(index)
+            elif type(dialog) == GrabArtistBio:
+                    index = dialog.songIndex # store the index of the song for which the lyrics are shown
+                    dialog.destroy()
+                    GrabArtistBio(index)
         elif Slideshow.top != None:
             #destroy it
             Slideshow.top.destroy()
@@ -2077,6 +3032,7 @@ def on_closing(): #this function is called only when window is canceled
         play_list.RESUMED = False
     file = open(automaticallyBackupFile, "wb")
     pickle.dump(play_list, file)
+    file.close()
     window.quit()
     sys.exit()
 
@@ -2441,6 +3397,10 @@ def changingLabelBackgroundColor(event):
     labelSampleRate["background"] = labelBackground.get()
     labelNofPlays["background"] = labelBackground.get()
     labelDanthologyMode["background"] = labelBackground.get()
+    labelArtist["background"] = labelBackground.get()
+    labelAlbum["background"] = labelBackground.get()
+    labelTitle["background"] = labelBackground.get()
+    labelYear["background"] = labelBackground.get()
     if labelBackground.get() != "lightgray": #lightgray is the default color, if condition is true, means user cutomized it
         play_list.customLabelBackground = custom_color_list.index(labelBackground.get())
 
@@ -2467,6 +3427,10 @@ def changingBackgroundedLabelsColor(value, loading=1):
         labelSampleRate["fg"] = fontColor.get()
         labelNofPlays["fg"] = fontColor.get()
         labelDanthologyMode["fg"] = fontColor.get()
+        labelArtist["fg"] = fontColor.get()
+        labelAlbum["fg"] = fontColor.get()
+        labelTitle["fg"] = fontColor.get()
+        labelYear["fg"] = fontColor.get()
     else:
         color = OpenFileButton["bg"] #put the same color as button background
         labelPlaying["fg"] = color
@@ -2487,6 +3451,10 @@ def changingBackgroundedLabelsColor(value, loading=1):
         labelSampleRate["fg"] = color
         labelNofPlays["fg"] = color
         labelDanthologyMode["fg"] = color
+        labelArtist["fg"] = color
+        labelAlbum["fg"] = color
+        labelTitle["fg"] = color
+        labelYear["fg"] = color
 
 def move_up():
     global listBox_Song_selected_index
@@ -2571,6 +3539,10 @@ def changeFonts():
     labelSampleRate["font"] = allButtonsFont
     labelNofPlays["font"] = allButtonsFont
     labelDanthologyMode["font"] = allButtonsFont
+    labelArtist["font"] = allButtonsFont
+    labelAlbum["font"] = allButtonsFont
+    labelTitle["font"] = allButtonsFont
+    labelYear["font"] = allButtonsFont
     # changing listbox
     listbox["font"] = allButtonsFont
     #changing radiobuttons:
@@ -2667,6 +3639,10 @@ def packPositionLabels():
     labelSampleRate.pack()
     labelNofPlays.pack()
     labelDanthologyMode.pack()
+    labelArtist.pack()
+    labelAlbum.pack()
+    labelTitle.pack()
+    labelYear.pack()
 
     # Placing the labels
     labelDuration.place(x=10, y=210)
@@ -2685,9 +3661,14 @@ def packPositionLabels():
     labelMonoStereoMode.place(x=300, y=370)
 
     labelTotalPlayTime.place(x=10, y=550)
-    labelFallAsleep.place(x=10, y=570)
-    labelWakeUp.place(x=10, y=590)
-    labelDanthologyMode.place(x=300, y=550)
+    labelDanthologyMode.place(x=10, y=570)
+    labelFallAsleep.place(x=10, y=590)
+    labelWakeUp.place(x=10, y=610)
+    
+    labelArtist.place(x=300, y=550)
+    labelAlbum.place(x=300, y=570)
+    labelTitle.place(x=300, y=590)
+    labelYear.place(x=300, y=610)
 
 def pressedEnter(event):
     play_music()
@@ -2710,8 +3691,8 @@ def pressedDelete(event):
 
 def pressedKeyShortcut(event):
     if event.char == " ":
-         pause_music()
-    elif event.char == "m":
+        pause_music()
+    elif event.char == "m" or event.char == "M":
         if pygame.mixer.get_init():
             if pygame.mixer.music.get_volume()>0:
                 pygame.mixer.music.set_volume(0)
@@ -2723,17 +3704,17 @@ def pressedKeyShortcut(event):
         volume_up()
     elif event.char == ".":
         volume_down()
-    elif event.char == "r":
+    elif event.char == "r" or event.char == "R":
         repeat()
-    elif event.char == "c":
+    elif event.char == "c" or event.char == "C":
         view_playlist()
-    elif event.char == "x":
+    elif event.char == "x" or event.char == "X":
         next_song()
-    elif event.char =="z":
+    elif event.char =="z" or event.char =="Z":
         previous_song()
-    elif event.char =="s":
+    elif event.char =="s" or event.char =="S":
         shuffle()
-    elif event.char =="d":
+    elif event.char =="d" or event.char =="D":
         stop_music()
     elif event.char == "1":
         if pygame.mixer.get_init():
@@ -2785,12 +3766,12 @@ def pressedKeyShortcut(event):
             play_list.VolumeLevel = 1.0
             pygame.mixer.music.set_volume(play_list.VolumeLevel)
             textVolumeLevel.set("Volume Level: " + str(int(play_list.VolumeLevel * 100)) + "%")
-    elif event.char == "a":
+    elif event.char == "a" or event.char == "A":
         if Slideshow.top==None:
             Slideshow()
-    elif event.char == "P":
+    elif event.char == "p" or event.char == "P":
         Customize(window)
-    elif event.char == "i":
+    elif event.char == "i" or event.char == "I":
         messagebox.showinfo("Information", "Congratulation for discovering navigational keys! \n\n"
                 + "As you might not know all the keys, here is a full guide:\n\n"
                 + "S - is equivalent to Shuffle Button.\n"
@@ -2802,6 +3783,7 @@ def pressedKeyShortcut(event):
                 + "M - is equivalent to Mute.\n"
                 + "Q - is equivalent to Cut Selected Button\n"
                 + "T - is equivalent to Sleep\Wake Button\n"
+                + "L - is equivalent to GrabLyrics\n"
                 + "J - is equivalent to Search Button\n"
                 + "P - is equivalent to Customize Option\n"
                 + "W - will rename the Selected Song in the Playlist as: 'Artist - Title.mp3'"
@@ -2818,14 +3800,18 @@ def pressedKeyShortcut(event):
                 + "Page Up or Up - can be used to navigate the playlist UP.\n"
                 + "Page Down or Down - can be used to navigate the playlist DOWN.\n"
                 + "i - will show you this message again.")
-    elif event.char == "q":
+    elif event.char == "q" or event.char == "Q":
         showCuttingTool()
-    elif event.char =="j":
+    elif event.char =="j" or event.char =="J":
         searchSongInPlaylist()
-    elif event.char == "t":
+    elif event.char == "t" or event.char == "T":
         showSleepingTool()
-    elif event.char == "h":
+    elif event.char == "h" or event.char == "H":
         Mp3TagModifierTool()
+    elif event.char == "l" or event.char == "L":
+        showGrabLyricsWindow()
+    elif event.char == "g" or event.char == "G":
+        showArtistBioWindow()
 
 def listboxShortcuts(event):
     if event.char == "w":
@@ -2872,9 +3858,17 @@ def rightClickListboxElement(event):
         aMenu.add_command(label='Move Down', command=move_down)
         aMenu.add_command(label='Open in Explorer', command=openFileInExplorer)
         if len(listboxSelectedEvent.curselection()) > 0:
-            aMenu.add_command(label='MP3 Tag Modifier', command= lambda:Mp3TagModifierTool(index))
+            aMenu.add_command(label='MP3 Tag Modifier', command= lambda:showMp3TagModifierWindow(index))
+            aMenu.add_command(label='Grab Song Lyrics', command= lambda:showGrabLyricsWindow(index))
+            aMenu.add_command(label='Grab Artist Bio', command= lambda:showArtistBioWindow(index))
         aMenu.post(event.x_root, event.y_root)
 
+def showMp3TagModifierWindow(index):
+    if dialog == None:
+        Mp3TagModifierTool(index)
+    else:
+        messagebox.showinfo("Information", "Please close the other component window before proceed.")
+        
 def showAboutWindow():
     messagebox.showinfo("About",
             "Hello!\n"+
@@ -2896,6 +3890,18 @@ def showCustomizeWindow():
     else:
         messagebox.showinfo("Information", "Please close the other component window before proceed.")
 
+def showGrabLyricsWindow(index="empty"):
+    if dialog == None:
+        GrabLyricsTool(index)
+    else:
+        messagebox.showinfo("Information", "Please close the other component window before proceed.")
+
+def showArtistBioWindow(index="empty"):
+    if dialog == None:
+        GrabArtistBio(index)
+    else:
+        messagebox.showinfo("Information", "Please close the other component window before proceed.")
+
 def showSlideshowWindow():
     if Slideshow.top == None:
         Slideshow()
@@ -2911,6 +3917,8 @@ def rightClickOnWindow(event):
         aMenu.add_command(label='SleepingTool', command=showSleepingTool)
         aMenu.add_command(label='CuttingTool', command=showCuttingTool)
         aMenu.add_command(label='SearchTool', command=searchSongInPlaylist)
+        aMenu.add_command(label='GrabLyrics', command=showGrabLyricsWindow)
+        aMenu.add_command(label='ArtistBio', command=showArtistBioWindow)
         aMenu.post(event.x_root, event.y_root)
 
 def packPositionListScrolOptionProgRadio():
@@ -3344,6 +4352,26 @@ textDanthologyMode.set("Danthology Mode: OFF")
 labelDanthologyMode = tk.Label(window, textvariable=textDanthologyMode, compound=tk.CENTER, padx=10 \
                         , fg=SkinColor.get(), font=allButtonsFont, background = labelBackground.get())
 
+textArtist = StringVar()
+textArtist.set("Artist: ")
+labelArtist = tk.Label(window, textvariable=textArtist, compound=tk.CENTER, padx=10 \
+                        , fg=SkinColor.get(), font=allButtonsFont, background = labelBackground.get())         
+
+textAlbum = StringVar()
+textAlbum.set("Album: ")
+labelAlbum = tk.Label(window, textvariable=textAlbum, compound=tk.CENTER, padx=10 \
+                        , fg=SkinColor.get(), font=allButtonsFont, background = labelBackground.get())      
+
+textTitle = StringVar()
+textTitle.set("Title: ")
+labelTitle = tk.Label(window, textvariable=textTitle, compound=tk.CENTER, padx=10 \
+                        , fg=SkinColor.get(), font=allButtonsFont, background = labelBackground.get())         
+
+textYear = StringVar()
+textYear.set("Year: ")
+labelYear = tk.Label(window, textvariable=textYear, compound=tk.CENTER, padx=10 \
+                        , fg=SkinColor.get(), font=allButtonsFont, background = labelBackground.get())                           
+                        
 packPositionLabels()
 
 
@@ -3369,7 +4397,7 @@ option = Combobox(window, textvariable=SkinColor, values = skinOptions[1])
 styl = ttk.Style()
 
 #Creating Progress bar
-progress = Progressbar(orient=tk.HORIZONTAL, length=470, mode='determinate', value=0, maximum = 100, \
+progress = Progressbar(orient=tk.HORIZONTAL, length=470, mode=play_list.ProgressBarType, value=0, maximum = 100, \
                        style="Horizontal.TProgressbar",) #using the same style
 
 #Creating RadioButton
