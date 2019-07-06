@@ -1627,7 +1627,10 @@ class Mp3TagModifierTool:
                 self.ArtistTag.insert(0, value[0].strip(" "))
                 self.TitleTag.delete(0, tk.END)
                 value[1] = value[1].strip(" ") #remove any whitespaces at the beginning, or end
-                self.TitleTag.insert(0, value[1].rstrip(".mp3"))
+                value[1] = value[1].rstrip(".mp3")
+                value[1] = value[1].rstrip(".MP3")
+                value[1] = value[1].rstrip(".Mp3")
+                self.TitleTag.insert(0, value[1])
             else:
                 self.ArtistTag.delete(0, tk.END)
                 self.ArtistTag.insert(0, self.NameTag.get().rstrip(".mp3 "))
@@ -2121,10 +2124,10 @@ class GrabArtistBio():
                 http = urllib3.PoolManager()
                 response = http.request('GET', url)
                 if response.status == 200:
-                    text_list = self.filterTextFromWikipedia(response.data)
+                    text_list = self.filterTextFromLastFM(response.data)
         return text_list
 
-    def filterTextFromWikipedia(self, data):
+    def filterTextFromLastFM(self, data):
         text = BeautifulSoup(data, "html.parser")
         text = text.decode("utf-8")
         # Start filtering the html content of the webpage
@@ -3640,9 +3643,9 @@ def packPositionLabels():
     labelNofPlays.pack()
     labelDanthologyMode.pack()
     labelArtist.pack()
-    labelAlbum.pack()
-    labelTitle.pack()
     labelYear.pack()
+    labelTitle.pack()
+    labelAlbum.pack()
 
     # Placing the labels
     labelDuration.place(x=10, y=210)
@@ -3666,9 +3669,9 @@ def packPositionLabels():
     labelWakeUp.place(x=10, y=610)
     
     labelArtist.place(x=300, y=550)
-    labelAlbum.place(x=300, y=570)
+    labelYear.place(x=300, y=570)
     labelTitle.place(x=300, y=590)
-    labelYear.place(x=300, y=610)
+    labelAlbum.place(x=300, y=610)
 
 def pressedEnter(event):
     play_music()
@@ -3784,6 +3787,7 @@ def pressedKeyShortcut(event):
                 + "Q - is equivalent to Cut Selected Button\n"
                 + "T - is equivalent to Sleep\Wake Button\n"
                 + "L - is equivalent to GrabLyrics\n"
+				+ "G - is equivalent to ArtistBio\n"
                 + "J - is equivalent to Search Button\n"
                 + "P - is equivalent to Customize Option\n"
                 + "W - will rename the Selected Song in the Playlist as: 'Artist - Title.mp3'"
