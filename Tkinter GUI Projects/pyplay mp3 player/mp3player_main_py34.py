@@ -128,7 +128,7 @@ class CuttingTool:
             self.InfoLabelText.set("Welcome to MP3 Cutting capability:\n\n"
                                +"Please enter Start and End value and Hit OK.\n"
                                 +"This will NOT change the original file.\n\n\n")
-            tk.Label(self.top, textvariable=self.InfoLabelText, fg=fontColor.get(), font=allButtonsFont, bg=color).place(x=40, y=10)
+            tk.Label(self.top, textvariable=self.InfoLabelText, fg=fontColor.get(), font=allButtonsFont, bg=color).place(x=10, y=10)
             tk.Label(self.top, text="Start Value (0 - " + str(int(play_list.validFiles[play_list.currentSongIndex].Length)) + "):",
                                             fg=fontColor.get(), font=allButtonsFont, bg=color).place(x=columnOne, y=100)
 
@@ -173,7 +173,7 @@ class CuttingTool:
                                            command=self.restoreAllSongs, bg=color, fg=fontColor.get(),
                                            font=allButtonsFont)
             self.restoreForAllButton.place(x=80, y=260)
-
+            self.take_focus()
             dialog = self #each instance of CuttingTool will be assigned to this variable:
 
     def addFadingOnPlaylist(self):
@@ -313,9 +313,11 @@ class SearchTool:
         BackwardButton = tk.Button(self.top, text="Backward", command=lambda:self.playPreviousSearch("<Shift_R>"), fg=fontColor.get(), font=allButtonsFont,
                                 bg=color)
         BackwardButton.pack()
+        self.take_focus()
         dialog = self
 
     def focus_Input(self,event):
+        self.top.wm_attributes("-topmost", 1)
         self.searchValue.focus_force()
 
     def focus_out(self, event):
@@ -471,6 +473,7 @@ class Slideshow:
         self.labelNumberOfImages.pack()
         Slideshow.top.bind("<Escape>", self.destroyEsc)
         Slideshow.top.bind("<Tab>", self.focus_out)
+        Slideshow.take_focus()
 
     def loadImages(self):
         global play_list
@@ -580,6 +583,7 @@ class SleepingTool:
 
         self.top.bind("<Escape>", self.destroyEsc)
         self.top.bind("<Tab>", self.focus_Input)
+        self.take_focus()
         dialog = self
 
     def destroy(self):
@@ -597,6 +601,7 @@ class SleepingTool:
         self.destroy()
 
     def focus_Input(self, event):
+        self.top.wm_attributes("-topmost", 1)
         if self.sleepInterval.focus_get():
             self.wakeUpInterval.focus_force()
         else:
@@ -856,6 +861,7 @@ class Customize:
 
         self.top.bind("<Escape>", self.destroyEsc)
         self.top.bind("<Tab>", self.focus_Input)
+        self.take_focus()
         dialog = self
 
     def changeActiveLyricsSource(self, event):
@@ -978,6 +984,7 @@ class Customize:
             self.TitleTransitionButtonText.set("Title Transition ON")
 
     def focus_Input(self, event):
+        self.top.wm_attributes("-topmost", 1)
         if self.colorBox.focus_get():
             self.fontBox.focus_force()
         elif self.fontBox.focus_get():
@@ -1041,6 +1048,7 @@ class NewPlaylistDialog:
         KeepItButton.pack(pady=10)
         dialog = self
         self.top.bind("<Escape>", self.destroyEsc)
+        self.take_focus()
 
     def stopIt(self):
         global play_list
@@ -1191,6 +1199,7 @@ class Mp3TagModifierTool:
         self.top.bind("<Tab>", self.focus_out)
         self.top.bind("<Escape>", self.destroyEsc)
         dialog = self
+        self.take_focus()
 
     def tagCapitalizer(self):
         if self.ArtistTag.get()!= "Various":
@@ -1781,7 +1790,7 @@ class GrabLyricsTool:
             self.top = tk.Toplevel(window, bg=color)
             Window_Title = "Grab Lyrics Tool"
             self.top.title(Window_Title)
-            self.top.geometry("540x550+100+100")
+            self.top.geometry("580x550+100+100")
             self.top.protocol("WM_DELETE_WINDOW", self.destroy)
             self.top.attributes('-alpha', play_list.windowOpacity)
             allButtonsFont = skinOptions[2][play_list.skin]
@@ -1794,12 +1803,12 @@ class GrabLyricsTool:
             self.Lyrics = StringVar()
             self.Lyrics.set("Lyrics")
             tk.Label(self.top, textvariable=self.Lyrics, fg=fontColor.get(), font=allButtonsFont, bg=color).place(x=5, y=115)
-            self.frame = tk.Frame(self.top, width=100, height=30, bg=color, borderwidth=1)
+            self.frame = tk.Frame(self.top, width=500, height=30, bg=color, borderwidth=1)
             self.frame.place(x=10, y=135)
             self.scrlbar = tk.Scrollbar(self.frame, orient="vertical", width=10)
             self.listboxLyrics = tk.Listbox(self.frame, fg=fontColor.get(), font=allButtonsFont, width=65, bg=color, height=20, \
                          yscrollcommand=self.scrlbar.set)
-            self.listboxLyrics.pack(padx=10, pady=10,side = tk.LEFT, fill=tk.X)
+            self.listboxLyrics.pack(padx=10, pady=10, side = tk.LEFT)
             self.scrlbar.config(command=self.listboxLyrics.yview)
             self.scrlbar.pack(side=tk.RIGHT, fill=tk.Y)
             self.SaveLyrics = tk.Button(self.top, text="Save Lyrics",command=self.saveLyrics, fg=fontColor.get(), font=allButtonsFont,
@@ -1839,6 +1848,7 @@ class GrabLyricsTool:
             else:
                 self.LyricsDisplay()
             dialog = self
+            self.take_focus()
 
     def downloadAllLyrics(self):
         for i in range(0, len(play_list.validFiles)):
@@ -1917,8 +1927,32 @@ class GrabLyricsTool:
         if play_list.validFiles[self.songIndex].Artist != "Various" and play_list.validFiles[
             self.songIndex].Title != "Various":
             artist = play_list.validFiles[self.songIndex].Artist
+            artist = artist.replace("'", "")
+            artist = artist.replace(",", "")
+            artist = artist.replace(":", "")
+            artist = artist.replace(".", "")
+            artist = artist.replace("!", "")
+            artist = artist.replace("%", "")
+            artist = artist.replace("?", "")
+            artist = artist.replace("`", "")
+            artist = artist.replace("`", "")
+            artist = artist.replace(" & ", " and ")
+            artist = artist.replace("&", " and ")
             artist = artist.replace(" ", "-")
             title = play_list.validFiles[self.songIndex].Title
+            title = title.replace("'", "")
+            title = title.replace(",", "")
+            title = title.replace(":", "")
+            title = title.replace(".", "")
+            title = title.replace("!", "")
+            title = title.replace("%", "")
+            title = title.replace("?", "")
+            title = title.replace("`", "")
+            title = title.replace("&", "")
+            title = title.replace(".mp3", "")
+            title = title.replace(".MP3", "")
+            title = title.replace(".mP3", "")
+            title = title.replace(".Mp3", "")
             title = title.replace(" ", "-")
             if play_list.LyricsActiveSource == "all":
                 url = "http://www.lyrics.my/artists/" + artist + "/lyrics/" + title  # this is possible to change with time. Let's hope it doesn't
@@ -2051,6 +2085,12 @@ class GrabLyricsTool:
                             + play_list.validFiles[self.songIndex].Title + "' -> were found on " + source + ":")
             for element in text_list:
                 self.listboxLyrics.insert(tk.END, element)
+                if len(element) > 55 and len(element) > self.listboxLyrics["width"]:  # this will resize the window and the listbox to fit the lyrics.
+                    listboxX = len(element) - 55
+                    windowX = 580 + (listboxX * 10)  # 580 is the initial value of the window
+                    listboxX += 65  # 65 is the initial width of the listbox
+                    self.top.geometry(str(windowX) + "x550+100+100")
+                    self.listboxLyrics["width"] = listboxX
             self.SaveLyrics.config(state=tk.NORMAL)
         else:
             self.Lyrics.set("Lyrics for '" + play_list.validFiles[self.songIndex].Artist + " - " \
@@ -2087,13 +2127,12 @@ class GrabArtistBio():
             self.top = tk.Toplevel(window, bg=color)
             Window_Title = "Artist Bio"
             self.top.title(Window_Title)
-            self.top.geometry("440x350+100+100")
+            self.top.geometry("490x350+100+100")
             self.top.protocol("WM_DELETE_WINDOW", self.destroy)
             self.top.attributes('-alpha', play_list.windowOpacity)
             allButtonsFont = skinOptions[2][play_list.skin]
             self.Message = StringVar()
-            self.Message.set(
-                "According to LastFM:\n\n")
+            self.Message.set("According to LastFM:\n\n")
             tk.Label(self.top, textvariable=self.Message, fg=fontColor.get(), font=allButtonsFont,
                      bg=color).place(x=5, y=5)
             self.BioText = StringVar()
@@ -2112,19 +2151,34 @@ class GrabArtistBio():
             self.top.bind("<Tab>", self.focus_out)
             self.top.bind("<Escape>", self.destroyEsc)
             dialog = self
+            self.take_focus()
 
     def accessPage(self):
         urllib3.disable_warnings()
         text_list = []
         if play_list.validFiles[self.songIndex].Artist != "Various":
             artist = play_list.validFiles[self.songIndex].Artist
-            artist = artist.replace(" ", "_")
-            if play_list.LyricsActiveSource == "all":
-                url = "https://www.last.fm/music/" + artist + "/+wiki" # this is possible to change with time. Let's hope it doesn't
-                http = urllib3.PoolManager()
-                response = http.request('GET', url)
-                if response.status == 200:
-                    text_list = self.filterTextFromLastFM(response.data)
+            artist = artist.replace("'", "")
+            artist = artist.replace(",", "")
+            artist = artist.replace(":", "")
+            artist = artist.replace(".", "")
+            artist = artist.replace("!", "")
+            artist = artist.replace("%", "")
+            artist = artist.replace("?", "")
+            artist = artist.replace("`", "")
+            artist = artist.replace("`", "")
+            artist = artist.replace(" & ", " and ")
+            artist = artist.replace("&", " and ")
+            artist = artist.replace(".mp3", "")
+            artist = artist.replace(".MP3", "")
+            artist = artist.replace(".mP3", "")
+            artist = artist.replace(".Mp3", "")
+            artist = artist.replace(" ", "+")
+            url = "https://www.last.fm/music/" + artist + "/+wiki" # this is possible to change with time. Let's hope it doesn't
+            http = urllib3.PoolManager()
+            response = http.request('GET', url)
+            if response.status == 200:
+                text_list = self.filterTextFromLastFM(response.data)
         return text_list
 
     def filterTextFromLastFM(self, data):
@@ -2144,6 +2198,9 @@ class GrabArtistBio():
         text = text.replace("</p>", "")
         text = text.replace("<strong>", "")
         text = text.replace("</strong>", "")
+        text = text.replace("</br>", "")
+        text = text.replace("<br/>", "")
+        text = text.replace("<br>", "")
         text = text.replace("<em>", "")
         text = text.replace("</em>", "")
         text = text.replace("<i>", "")
@@ -2172,16 +2229,19 @@ class GrabArtistBio():
             text = text.replace("</a>", "")
         newText = ""
         list_text = []
+        splitParagraph = False
         for i in range(0, len(text)):
             if text[i] != "\n":
                 newText += text[i]
-            if text[i] == "." and len(list_text)%5==0: #make a new paragraph after each 5 sentences.
-                list_text.append(newText)
+            if (text[i] == "." and i < len(text)-1 and text[i+1]==" ") and (len(list_text)%5==0 or splitParagraph): #make a new paragraph after each 5 sentences.
+                list_text.append("  " + newText)
                 newText = ""
                 list_text.append("") #add an empty line
             elif len(newText)>=45 and (text[i]==" " or text[i] =="-"):
-                list_text.append(newText)
+                list_text.append("  " +newText)
                 newText=""
+            if len(list_text) % 5 > 0 and len(list_text) % 5 < 3 and len(list_text) > 5:
+                splitParagraph = True
         return list_text
 
     def ArtistBioDisplay(self): #to be continued
@@ -2281,9 +2341,9 @@ def loadPlaylistFile(fileURL):
             #the following lines will help keeping the predefined values of last skin used in case not all fields were customized
             allButtonsFont = skinOptions[2][play_list.skin]
             changeFonts()  # change the font that comes with the new skin
-            updateRadioButtons()
             labelBackground.set("lightgray")  # default value
             fontColor.set("white")  # default value
+            updateRadioButtons()
             changingFontColor("<<ComboboxSelected>>")
             changingLabelBackgroundColor("<<ComboboxSelected>>")
             SkinColor.set(skinOptions[1][play_list.skin])
@@ -2305,14 +2365,18 @@ def loadPlaylistFile(fileURL):
             if play_list.customChangeBackgroundedLabelsColor != None:
                 changingBackgroundedLabelsColor("not important") #the parameter will not be used in this context
             if play_list.customBackgroundPicture!=None: #this will load the custom background
-                if ".gif" in play_list.customBackgroundPicture:
-                    background_image = tk.PhotoImage(file=play_list.customBackgroundPicture)
-                    background_label.configure(image=background_image)
-                    background_label.image = background_image
-                elif ".jpg" in play_list.customBackgroundPicture or ".jpeg" in play_list.customBackgroundPicture:
-                    img = ImageTk.PhotoImage(Image.open(play_list.customBackgroundPicture))
-                    background_label.configure(image=img)
-                    background_label.image = img
+                if os.path.exists(play_list.customBackgroundPicture):
+                    if ".gif" in play_list.customBackgroundPicture:
+                        background_image = tk.PhotoImage(file=play_list.customBackgroundPicture)
+                        background_label.configure(image=background_image)
+                        background_label.image = background_image
+                    elif ".jpg" in play_list.customBackgroundPicture or ".jpeg" in play_list.customBackgroundPicture:
+                        img = ImageTk.PhotoImage(Image.open(play_list.customBackgroundPicture))
+                        background_label.configure(image=img)
+                        background_label.image = img
+                else:
+                    print("I was not able to load the background image: " + str(play_list.customBackgroundPicture))
+                    print("The file could not be found.")
             #Enter here if the skin was not customized, and put the predefined skin.
             if play_list.customElementBackground == None and play_list.customLabelBackground == None and play_list.customFont == None \
                     and play_list.customBackgroundPicture==None and play_list.customChangeBackgroundedLabelsColor == None and \
@@ -2531,8 +2595,8 @@ def stop_music():
 
 def handleDanthology():
     global play_list
-    if play_list.currentSongPosition >= play_list.validFiles[play_list.currentSongIndex].Length:
-        play_list.currentSongPosition =0
+    if play_list.currentSongPosition >= math.floor(play_list.validFiles[play_list.currentSongIndex].Length):
+        play_list.currentSongPosition = 0
     else:
         if play_list.RESUMED:
             play_list.currentSongPosition = math.floor(play_list.currentSongPosition + pygame.mixer.music.get_pos() / 1000)
@@ -2719,7 +2783,10 @@ def save_playlist():
             file = open(window.filename, "wb")
         else:
             file = open(window.filename + ".pypl", "wb")
-        play_list.currentSongPosition += (pygame.mixer.music.get_pos() / 1000)
+        if play_list.RESUMED:
+            play_list.currentSongPosition += math.floor(pygame.mixer.music.get_pos() / 1000)
+        else:
+            play_list.currentSongPosition = math.floor(pygame.mixer.music.get_pos() / 1000)
         pickle.dump(play_list, file)
         file.close()
 
@@ -2775,7 +2842,10 @@ def elementPlaylistDoubleClicked(event):
             index = int(widget.curselection()[0])
             #value = widget.get(index)
             play_list.currentSongIndex = index
-            play_list.currentSongPosition = 0
+            if play_list.danthologyMode == False: #else will let the next song continue where this one left
+                play_list.currentSongPosition = play_list.validFiles[play_list.currentSongIndex].startPos
+            elif pygame.mixer.get_init():
+                play_list.currentSongPosition += math.floor(pygame.mixer.music.get_pos() / 1000)
             play_music()
         else:
             widget = event.widget
@@ -2783,6 +2853,10 @@ def elementPlaylistDoubleClicked(event):
             value = widget.get(index)
             value=value.split(". ")
             play_list.currentSongIndex = int(value[0])
+            if play_list.danthologyMode == False: #else will let the next song continue where this one left
+                play_list.currentSongPosition = play_list.validFiles[play_list.currentSongIndex].startPos
+            elif pygame.mixer.get_init():
+                play_list.currentSongPosition += math.floor(pygame.mixer.music.get_pos() / 1000)
             play_music()
 
 def updateSortButton():
@@ -2920,13 +2994,15 @@ def changeSkin(event):
         if SkinColor.get() in skinOptions[1]: # if using predefined skins, with predifined backgrounds.
             index = skinOptions[1].index(SkinColor.get())
             backgroundFile = skinOptions[0][index]
-            if os.path.exists(backgroundFile):
-                if os.path.isfile(backgroundFile):
-                    play_list.customBackgroundPicture = backgroundFile
-                    background_image = tk.PhotoImage(file=backgroundFile)
-                    background_label.configure(image=background_image)
-                    background_label.image = background_image
-                    play_list.skin = index
+            if os.path.exists(backgroundFile) and os.path.isfile(backgroundFile):
+                play_list.customBackgroundPicture = backgroundFile
+                background_image = tk.PhotoImage(file=backgroundFile)
+                background_label.configure(image=background_image)
+                background_label.image = background_image
+                play_list.skin = index
+            else:
+                print("File: " + str(backgroundFile) + " could not be found.")
+                print("I improvised: only Skin Color was changed.")
         allButtonsFont = skinOptions[2][play_list.skin]
         changeFonts() #change the font that comes with the new skin
         labelBackground.set("lightgray") #default value
@@ -3010,12 +3086,13 @@ def randomize():
 
 def navigationSound(event):
     global play_list
+    global progressBarLength
     if len(play_list.validFiles) > 0 and play_list.currentSongIndex!= None:
-        e = event.widget
-        x = play_list.validFiles[play_list.currentSongIndex].Length / 470
-        play_list.currentSongPosition = ((event.x - progressBarMargin) * x)
-        pygame.mixer.music.rewind()
-        pygame.mixer.music.set_pos(play_list.currentSongPosition)
+        from fractions import Fraction
+        x = Fraction (play_list.validFiles[play_list.currentSongIndex].Length / progressBarLength)
+        play_list.currentSongPosition = math.floor(event.x * x)
+        pygame.mixer.music.play() #this will restart the song
+        pygame.mixer.music.set_pos(play_list.currentSongPosition) #this will set the desired position on the playback
         progress["value"] = play_list.currentSongPosition
         play_list.RESUMED = True
 
@@ -3030,9 +3107,13 @@ def on_closing(): #this function is called only when window is canceled
         play_list.isSongStopped = False
         play_list.isListOrdered = 0  # 0-onrating ; 1-sorted 2-reversed; 3-random;
         play_list.currentSongIndex = None
-        if play_list.danthologyMode == False:
-            play_list.currentSongPosition = 0
+        play_list.currentSongPosition = 0
         play_list.RESUMED = False
+    elif pygame.mixer.get_init():
+        if play_list.RESUMED: #it means there are songs in the playlist
+            play_list.currentSongPosition += math.floor(pygame.mixer.music.get_pos() / 1000)
+        else:
+            play_list.currentSongPosition = math.floor(pygame.mixer.music.get_pos() / 1000)
     file = open(automaticallyBackupFile, "wb")
     pickle.dump(play_list, file)
     file.close()
@@ -3259,6 +3340,7 @@ def sort_list():
 
 def UpdateSongRating():
     global play_list
+    global listBox_Song_selected_index
     if len(play_list.validFiles) > 0 and play_list.currentSongIndex:
         if pygame.mixer.get_init() != None:
             if pygame.mixer.music.get_busy() or play_list.isSongPause:
@@ -3790,15 +3872,14 @@ def pressedKeyShortcut(event):
 				+ "G - is equivalent to ArtistBio\n"
                 + "J - is equivalent to Search Button\n"
                 + "P - is equivalent to Customize Option\n"
-                + "W - will rename the Selected Song in the Playlist as: 'Artist - Title.mp3'"
                 + "A - is equivalent to Slideshow\n"
                 + "[0-9] - are equivalent to Volume Set 0% - 100%.\n"
-                + "SPACE - is equivalent to Pause, or action the active button selected using Tab.\n"
-                + "Tab - is sliding between the openened windows, or the active window elements.\n"
-                + "L_Shift - is equivalent to Move Up on the current song selection in the playlist.\n"
-                + "L_Ctrl - is equivalent to Move Down on the current song selection in the playlist.\n"
-                + "Delete - is equivalent to Remove on the current song selection in the playlist.\n"
-                + "Enter - is equivalent to Play current selection.\n"
+                + "SPACE - is equivalent to Pause, or press the active button selected using Tab.\n"
+                + "Tab - slides between the opened windows, or active elements.\n"
+                + "L_Shift - is equivalent to Move Up on the current playlist song selection.\n"
+                + "L_Ctrl - is equivalent to Move Down on the current playlist song selection.\n"
+                + "Delete - is equivalent to Remove on the current playlist song selection.\n"
+                + "Enter - is equivalent to Play current song selection.\n"
                 + ", or < key - is equivalent to Volume Up.\n"
                 + ". or > key - is equivalent to Volume Down.\n"
                 + "Page Up or Up - can be used to navigate the playlist UP.\n"
@@ -3918,11 +3999,11 @@ def rightClickOnWindow(event):
         aMenu.add_command(label='About', command=showAboutWindow)
         aMenu.add_command(label='Customize', command=showCustomizeWindow)
         aMenu.add_command(label='Slideshow', command=showSlideshowWindow)
-        aMenu.add_command(label='SleepingTool', command=showSleepingTool)
-        aMenu.add_command(label='CuttingTool', command=showCuttingTool)
-        aMenu.add_command(label='SearchTool', command=searchSongInPlaylist)
-        aMenu.add_command(label='GrabLyrics', command=showGrabLyricsWindow)
-        aMenu.add_command(label='ArtistBio', command=showArtistBioWindow)
+        aMenu.add_command(label='Sleeping Tool', command=showSleepingTool)
+        aMenu.add_command(label='Cutting Tool', command=showCuttingTool)
+        aMenu.add_command(label='Search Tool', command=searchSongInPlaylist)
+        aMenu.add_command(label='Grab Lyrics', command=showGrabLyricsWindow)
+        aMenu.add_command(label='Artist Bio', command=showArtistBioWindow)
         aMenu.post(event.x_root, event.y_root)
 
 def packPositionListScrolOptionProgRadio():
@@ -4085,8 +4166,7 @@ backgroundFile = skinOptions[0][play_list.skin]
 fontColor = StringVar()
 fontColor.set("white")
 
-background_image=tk.PhotoImage(file=backgroundFile)
-background_label = tk.Label(window, image=background_image)
+background_label = tk.Label(window)
 background_label.pack()
 background_label.place(x=0, y=0, relwidth=1, relheight=1)
 
@@ -4401,7 +4481,8 @@ option = Combobox(window, textvariable=SkinColor, values = skinOptions[1])
 styl = ttk.Style()
 
 #Creating Progress bar
-progress = Progressbar(orient=tk.HORIZONTAL, length=470, mode=play_list.ProgressBarType, value=0, maximum = 100, \
+progressBarLength = 470
+progress = Progressbar(orient=tk.HORIZONTAL, length=progressBarLength, mode=play_list.ProgressBarType, value=0, maximum = 100, \
                        style="Horizontal.TProgressbar",) #using the same style
 
 #Creating RadioButton
