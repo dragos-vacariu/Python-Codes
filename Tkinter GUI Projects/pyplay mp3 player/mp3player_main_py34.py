@@ -45,7 +45,7 @@ class Playlist:
         self.currentSongPosition = 0
         self.REPEAT = 1 # 1 is value for repeat all
         self.RESUMED=False
-        self.viewModel = "FULLSCREEN"
+        self.viewModel = "FULLSCREEN" # FULLSCREEN value on this one will make the playList compact.
         self.playTime = 0
         self.customFont = None
         self.customElementBackground = None
@@ -1371,7 +1371,7 @@ class Mp3TagModifierTool:
             else:
                 self.NameTag.insert(0, value.strip(" ").lower())
     
-    def composeArtistTitleAll(self):# to be fixed
+    def composeArtistTitleAll(self):
         dictionary={}
         dict_list=[]
         dict_loaded=False
@@ -1417,12 +1417,19 @@ class Mp3TagModifierTool:
                         song.Artist = value[0].strip(" ")
                         value[1] = value[1].strip(" ")
                         song.Title = value[1].rstrip(".mp3 ")
+                        song.Title = value[1].rstrip(".MP3 ")
+                        song.Title = value[1].rstrip(".mP3 ")
+                        song.Title = value[1].rstrip(".Mp3 ")
                         mp3file["artist"] = song.Artist
                         mp3file["title"] = song.Title
                         dictionary["newArtist"] = song.Artist
                         dictionary["newTitle"] = song.Title
                     else:
-                        song.Artist = value[0].strip(" ").rstrip(".mp3 ")
+                        song.Artist = value[0].strip(" ")
+                        song.Artist = value[0].rstrip(".MP3 ")
+                        song.Artist = value[0].rstrip(".mP3 ")
+                        song.Artist = value[0].rstrip(".Mp3 ")
+                        song.Artist = value[0].rstrip(".mp3 ")
                         mp3file["artist"] = song.Artist
                         dictionary["newArtist"] = song.Artist
                         dictionary["newTitle"] = ""
@@ -1484,7 +1491,7 @@ class Mp3TagModifierTool:
         pickle.dump(dict_list, file)
         file.close()
 
-    def renameAllFiles(self):  # to be tested
+    def renameAllFiles(self):
         dictionary = {}
         dict_list = []
         dict_loaded = False
@@ -1505,7 +1512,7 @@ class Mp3TagModifierTool:
             file = open(self.undoRenameBackupFile, "wb")
         for song in play_list.validFiles:
             if song.Artist != "Various" and song.Title != "Various":
-                newFileName = song.Artist + " - " + song.Title + ".mp3"
+                newFileName = song.Artist.strip(" ") + " - " + song.Title.strip(" ") + ".mp3"
                 pathToFile = song.filePath.split(song.fileName)
                 pathToFile = pathToFile[0]
                 alreadyContained = False
@@ -1550,7 +1557,7 @@ class Mp3TagModifierTool:
         else:
             self.undoMassRenameButton.config(state=tk.DISABLED)
 
-    def restorePreviousNames (self): # to be tested
+    def restorePreviousNames (self):
         global play_list
         dict_list=[]
         message = ""
@@ -1574,7 +1581,7 @@ class Mp3TagModifierTool:
                             if play_list.validFiles.index(song) == play_list.currentSongIndex and pygame.mixer.music.get_busy():  # enter here if the file to be renamed is currently playing
                                 play_list.isSongPause = True
                                 pygame.mixer.music.stop()
-                                shutil.copy(song.filePath, element['oldName'])  # make a copy of this file to the project locaiton
+                                shutil.copy(song.filePath, element['oldName'])  # make a copy of this file to the project location
                                 fileToRemove = song.filePath
                                 song.fileName = FileName  # this will update the play_list with the new song info
                                 song.filePath = element['oldName']
@@ -2483,7 +2490,7 @@ def play_music():
             s_rate = play_list.validFiles[play_list.currentSongIndex].sample_rate
             channels = play_list.validFiles[play_list.currentSongIndex].channels
             if pygame.mixer.get_init():
-                pygame.mixer.quit() # quit it, to make sure it is reinintialized
+                pygame.mixer.quit() # quit it, to make sure it is reinitialized
                 pygame.mixer.pre_init(frequency=s_rate, size=-16, channels=channels, buffer=4096)
             else:
                 pygame.mixer.pre_init(frequency=s_rate, size=-16, channels=channels, buffer=4096)
@@ -2516,7 +2523,7 @@ def play_music():
                 if play_list.currentSongPosition == 0:
                     if play_list.danthologyMode == False:
                         play_list.currentSongPosition = start_pos
-                    # otheriwse keep the currentSongPosition from the previous one.
+                    # otherwise keep the currentSongPosition from the previous one.
                 pygame.mixer.music.set_pos(start_pos)
                 play_list.RESUMED = True
             if play_list.danthologyDuration > 0 and play_list.danthologyMode:
@@ -2722,11 +2729,10 @@ def viewProgress():
                     if time.time() - play_list.danthologyTimer >  play_list.danthologyDuration:
                         #Danthology
                         next_song()
-                if len(play_list.validFiles) > 0:
-                    if play_list.currentSongPosition >= math.floor(play_list.validFiles[play_list.currentSongIndex].endPos):
-                        stop_music()
-                        play_list.isSongPause = False
-                        play_list.isSongStopped = False #song is not stopped in this circumstances, song has finished
+                if play_list.currentSongPosition >= math.floor(play_list.validFiles[play_list.currentSongIndex].endPos):
+                    stop_music()
+                    play_list.isSongPause = False
+                    play_list.isSongStopped = False #song is not stopped in this circumstances, song has finished
             try:
                 window.update()  # Force an update of the GUI
             except Exception as exp:
@@ -3048,7 +3054,7 @@ def changeSkin(event):
                     index = dialog.songIndex # store the index of the song for which the lyrics are shown
                     dialog.destroy()
                     GrabArtistBio(index)
-        elif Slideshow.top != None:
+        if Slideshow.top != None:
             #destroy it
             Slideshow.top.destroy()
             #rebuild it
@@ -3346,6 +3352,7 @@ def sort_list():
     aMenu.add_command(label='Sort By Album Reversed', command=sortByAlbumReversed)
     aMenu.add_command(label='Sort By Title', command=sortByTitle)
     aMenu.add_command(label='Sort By Title Reversed', command=sortByTitleReversed)
+    #these coordinates are set to be above Sort Button
     x = 770
     y = 650
     aMenu.post(x, y)
@@ -3853,7 +3860,7 @@ def pressedKeyShortcut(event):
             play_list.VolumeLevel = 0.8
             pygame.mixer.music.set_volume(play_list.VolumeLevel)
             textVolumeLevel.set("Volume Level: " + str(int(play_list.VolumeLevel * 100)) + "%")
-    elif event.char == "8":
+    elif event.char == "9":
         if pygame.mixer.get_init():
             play_list.VolumeLevel = 0.9
             pygame.mixer.music.set_volume(play_list.VolumeLevel)
@@ -3885,7 +3892,7 @@ def pressedKeyShortcut(event):
                 + "J - is equivalent to Search Button\n"
                 + "P - is equivalent to Customize Option\n"
                 + "A - is equivalent to Slideshow\n"
-                + "[0-9] - are equivalent to Volume Set 0% - 100%.\n"
+                + "[0-9] - are equivalent to Volume Set 10% - 100%.\n"
                 + "SPACE - is equivalent to Pause, or press the active button selected using Tab.\n"
                 + "Tab - slides between the opened windows, or active elements.\n"
                 + "L_Shift - is equivalent to Move Up on the current playlist song selection.\n"
