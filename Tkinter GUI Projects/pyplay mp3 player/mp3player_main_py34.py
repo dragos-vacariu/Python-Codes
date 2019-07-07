@@ -181,6 +181,7 @@ class CuttingTool:
         for song in play_list.validFiles:
             song.fadein_duration = int(self.FadeIn.get())
             song.fadeout_duration = int(self.FadeOut.get())
+        messagebox.showinfo("Information", "Operation Done.\n\nFading was added to all Songs in the Playlist.")
 
     def restoreCurrentSong(self):
         global Playlist
@@ -190,15 +191,20 @@ class CuttingTool:
         play_list.validFiles[play_list.currentSongIndex].endPos = play_list.validFiles[play_list.currentSongIndex].Length
         self.FadeIn.set(str(play_list.validFiles[play_list.currentSongIndex].fadein_duration))
         self.FadeOut.set(str(play_list.validFiles[play_list.currentSongIndex].fadeout_duration))
+        messagebox.showinfo("Information", "Operation Done.\n\nFading was removed from current Song.")
+        textFadeIn.set("FadeIn: " + str(play_list.validFiles[play_list.currentSongIndex].fadein_duration)+"s")
+        textFadeOut.set("FadeOut: " + str(play_list.validFiles[play_list.currentSongIndex].fadeout_duration)+"s")
 
     def restoreAllSongs(self):
-        global Playlist
         global play_list
         for song in play_list.validFiles:
             song.fadein_duration = 0
             song.fadeout_duration = 0
         self.FadeIn.set(str(play_list.validFiles[play_list.currentSongIndex].fadein_duration))
         self.FadeOut.set(str(play_list.validFiles[play_list.currentSongIndex].fadeout_duration))
+        messagebox.showinfo("Information", "Operation Done.\n\nFading was removed for all Songs in the Playlist.")
+        textFadeIn.set("FadeIn: " + str(play_list.validFiles[play_list.currentSongIndex].fadein_duration)+"s")
+        textFadeOut.set("FadeOut: " + str(play_list.validFiles[play_list.currentSongIndex].fadeout_duration)+"s")
 
     def take_focus(self):
         self.top.wm_attributes("-topmost", 1)
@@ -255,7 +261,6 @@ class CuttingTool:
                     play_list.validFiles[play_list.currentSongIndex].startPos = st_value
                     startPos = int(play_list.validFiles[play_list.currentSongIndex].startPos)
                     textStartTime.set("Start Time: {:0>8}".format(str(datetime.timedelta(seconds=startPos))))
-                #print("Bad Input: start - " + str(self.startValue) + "  end - " + str(self.endValue))
         if self.endValue.get() != "" and play_list.currentSongIndex!=None:
             try:
                 ed_value = float(self.endValue.get())
@@ -478,7 +483,7 @@ class Slideshow:
     def loadImages(self):
         global play_list
         slidePictures = filedialog.askopenfilenames(initialdir="/", title="Please select one or more files", filetypes=(
-        ("gif files", "*.gif"), ("jpg files", "*.jpg"), ("jpeg files", "*.jpeg"),("all files", "*.*")))
+        ("jpg files", "*.jpg"), ("gif files", "*.gif"), ("jpeg files", "*.jpeg"),("all files", "*.*")))
         play_list.slideImages += list(slidePictures)
         if len(play_list.slideImages) == 0:
             messagebox.showinfo("Information", "Slideshow is empty. No valid files were found. Please load only .jpg, .jpeg or .gif files.")
@@ -612,8 +617,8 @@ class SleepingTool:
         if self.wakeUpInterval.get() != "":
             try:
                 self.wakeUpTime = int(self.wakeUpInterval.get())
-            except Exception as e:
-                print(e)
+            except Exception as exp:
+                print("Exception occur on wakeUp Function: " + str(exp))
             else:
                 self.top.destroy()
                 dialog = None
@@ -637,8 +642,8 @@ class SleepingTool:
         if self.sleepInterval.get() != "":
             try:
                 self.sleepTime = int(self.sleepInterval.get())
-            except Exception as e:
-                print(e)
+            except Exception as exp:
+                print("Exception occur on sleeping function: " + str(exp))
             else:
                 self.top.destroy()
                 dialog = None
@@ -1064,7 +1069,7 @@ class NewPlaylistDialog:
     def destroyEsc(self):
         self.destroy()
 
-    def takeFocus(self):
+    def take_focus(self):
         self.top.wm_attributes("-topmost", 1)
         self.top.grab_set()
 
@@ -1424,12 +1429,11 @@ class Mp3TagModifierTool:
                     dict_list.append(dictionary)
                     dictionary = {}
                     mp3file.save(v2_version=3)
-            else: #this branch should never be reached
-                messagebox.showinfo("Information", "The name should not be empty.")
         self.ArtistTag.delete(0, tk.END)
         self.ArtistTag.insert(0, self.Song.Artist)
         self.TitleTag.delete(0, tk.END)
         self.TitleTag.insert(0, self.Song.Title)
+        messagebox.showinfo("Information", "Operation Done\n\nArtist/Title tags were changed for all files.")
         pickle.dump(dict_list, file)
         file.close()
         if os.path.isfile(self.undoArtistTitleBackupFile) and play_list.useMassFileEditor:
@@ -1470,6 +1474,8 @@ class Mp3TagModifierTool:
             for element in dict_list:
                 message += element['fileName'] + "\n"
             messagebox.showinfo("Information", "Some files not found within playlist:\n" + message)
+        else:
+            messagebox.showinfo("Information", "Operation Done\n\nPrevious Artist/Title tags have been restored.")
         self.ArtistTag.delete(0, tk.END)
         self.ArtistTag.insert(0, self.Song.Artist)
         self.TitleTag.delete(0, tk.END)
@@ -1538,6 +1544,7 @@ class Mp3TagModifierTool:
         self.NameTag.insert(0, self.Song.fileName)
         pickle.dump(dict_list, file)
         file.close()
+        messagebox.showinfo("Information", "Operation Done\n\nAll files were renamed.")
         if os.path.isfile(self.undoRenameBackupFile) and play_list.useMassFileEditor:
             self.undoMassRenameButton.config(state=tk.NORMAL)
         else:
@@ -1591,6 +1598,8 @@ class Mp3TagModifierTool:
         file.close()
         if message!="":
             messagebox.showinfo("Information","Some file were not renamed: \n" + message)
+        else:
+            messagebox.showinfo("Information","Operation Done\n\nPrevious names have been restored to all files.")
         
     def NameCapitalizer(self):
         if "-" in self.NameTag.get():
@@ -1989,93 +1998,95 @@ class GrabLyricsTool:
     def filterTextFromGeniusCom(self, data):
         text = BeautifulSoup(data, "html.parser")
         text = text.decode("utf-8")
-        # Start filtering the html content of the webpage
-        text = text.split('<div class="lyrics">')
-        text = text[1].split('</div>')
-        text = text[0]
-        text = text.replace("   ", "")
-        text = text.replace("\n ", "\n")
-
-        text = text.replace("<p>", "")
-        text = text.replace("<b>", "")
-        text = text.replace("</b>", "")
-        text = text.replace("<i>", "")
-        text = text.replace("</i>", "")
-        text = text.replace("<!--sse-->", "")
-        text = text.replace("<!--/sse-->", "")
-        text = text.replace("</p>", "")
-        text = text.replace("<br>", "")
-        text = text.replace("<br/>", "")
-        text = text.replace("[", "")
-        text = text.replace("]", "")
-
-        if "<a annotation-fragment" in text:  # if there are any adds between these lyrics, lets remove them.
-            text = text.split("<a annotation-fragment=")
-            aux = []
-            for element in text:
-                if 'prevent-default-click="">' in element:
-                    element = element.split('prevent-default-click="">')
-                    aux.append(element[1])
-                else:
-                    aux.append(element)
-            text = "".join(aux)
-            text = text.replace("</a>", "")
-
-        newText = ""
         list_text = []
-        for i in range(0, len(text)):
-            if (text[i] >= "A" and text[i] <= "Z") or (text[i] >= "a" and text[i] <= "z") or (
-                    text[i] >= "0" and text[i] <= "9"):
-                newText += text[i]
-            elif text[i] == "\n":
-                if newText != "":
-                    list_text.append("    " + newText)
-                    newText = ""
-                if text[i - 1] == "\n" and text[i] == "\n" and text[i - 2] == "\n" and i > 3:
-                    list_text.append("")
-            elif i > 0:
-                if (text[i - 1] >= "A" and text[i - 1] <= "Z") or (text[i - 1] >= "a" and text[i - 1] <= "z") \
-                        or text[i - 1] == "," or text[i - 1] == ".":  # this is for word spacing.
+        # Start filtering the html content of the webpage
+        if '<div class="lyrics">' in text: # if this is not found on the page, probably there are no lyrics yet.
+            text = text.split('<div class="lyrics">')
+            text = text[1].split('</div>')
+            text = text[0]
+            text = text.replace("   ", "")
+            text = text.replace("\n ", "\n")
+
+            text = text.replace("<p>", "")
+            text = text.replace("<b>", "")
+            text = text.replace("</b>", "")
+            text = text.replace("<i>", "")
+            text = text.replace("</i>", "")
+            text = text.replace("<!--sse-->", "")
+            text = text.replace("<!--/sse-->", "")
+            text = text.replace("</p>", "")
+            text = text.replace("<br>", "")
+            text = text.replace("<br/>", "")
+            text = text.replace("[", "")
+            text = text.replace("]", "")
+
+            if "<a annotation-fragment" in text:  # if there are any adds between these lyrics, lets remove them.
+                text = text.split("<a annotation-fragment=")
+                aux = []
+                for element in text:
+                    if 'prevent-default-click="">' in element:
+                        element = element.split('prevent-default-click="">')
+                        aux.append(element[1])
+                    else:
+                        aux.append(element)
+                text = "".join(aux)
+                text = text.replace("</a>", "")
+
+            newText = ""
+            for i in range(0, len(text)):
+                if (text[i] >= "A" and text[i] <= "Z") or (text[i] >= "a" and text[i] <= "z") or (
+                        text[i] >= "0" and text[i] <= "9"):
                     newText += text[i]
+                elif text[i] == "\n":
+                    if newText != "":
+                        list_text.append("    " + newText)
+                        newText = ""
+                    if text[i - 1] == "\n" and text[i] == "\n" and text[i - 2] == "\n" and i > 3:
+                        list_text.append("")
+                elif i > 0:
+                    if (text[i - 1] >= "A" and text[i - 1] <= "Z") or (text[i - 1] >= "a" and text[i - 1] <= "z") \
+                            or text[i - 1] == "," or text[i - 1] == ".":  # this is for word spacing.
+                        newText += text[i]
         return list_text
 
     def filterTextFromLyricsMy(self, data):
         text = BeautifulSoup(data, "html.parser")
         text = text.decode("utf-8")
-        # Start filtering the html content of the webpage
-        text = text.split('<div class="show_lyric">')
-        text = text[1].split('</div>')
-        text = text[0]
-        text = text.replace("   ", "")
-        text = text.replace("\n ", "\n")
-
-        text = text.replace("<p>", "")
-        text = text.replace("<b>", "")
-        text = text.replace("</b>", "")
-        text = text.replace("<i>", "")
-        text = text.replace("</i>", "")
-        text = text.replace("</p>", "")
-        text = text.replace("<br>", "")
-        text = text.replace("</br>", "")
-        text = text.replace("<br/>", "")
-        text = text.replace("[", "(")
-        text = text.replace("]", ")")
-        newText = ""
         list_text = []
-        for i in range(0, len(text)):
-            if (text[i] >= "A" and text[i] <= "Z") or (text[i] >= "a" and text[i] <= "z") or (
-                    text[i] >= "0" and text[i] <= "9") or text[i] == "(" or text[i] == ")":
-                newText += text[i]
-            elif text[i] == "\n":
-                if newText != "":
-                    list_text.append("    " + newText)
-                    newText = ""
-                if newText =="" and len(list_text)>1 and list_text[(len(list_text)-1)]!="" and list_text[(len(list_text)-2)]!="":
-                    list_text.append("")
-            elif i > 0:
-                if (text[i - 1] >= "A" and text[i - 1] <= "Z") or (text[i - 1] >= "a" and text[i - 1] <= "z") \
-                        or text[i - 1] == "," or text[i - 1] == "." or text[i - 1] == "?" or text[i - 1] == "!":  # this is for word spacing.
+        # Start filtering the html content of the webpage
+        if '<div class="show_lyric">' in text: # if this is not found on page, it means there are no lyrics
+            text = text.split('<div class="show_lyric">')
+            text = text[1].split('</div>')
+            text = text[0]
+            text = text.replace("   ", "")
+            text = text.replace("\n ", "\n")
+
+            text = text.replace("<p>", "")
+            text = text.replace("<b>", "")
+            text = text.replace("</b>", "")
+            text = text.replace("<i>", "")
+            text = text.replace("</i>", "")
+            text = text.replace("</p>", "")
+            text = text.replace("<br>", "")
+            text = text.replace("</br>", "")
+            text = text.replace("<br/>", "")
+            text = text.replace("[", "(")
+            text = text.replace("]", ")")
+            newText = ""
+            for i in range(0, len(text)):
+                if (text[i] >= "A" and text[i] <= "Z") or (text[i] >= "a" and text[i] <= "z") or (
+                        text[i] >= "0" and text[i] <= "9") or text[i] == "(" or text[i] == ")":
                     newText += text[i]
+                elif text[i] == "\n":
+                    if newText != "":
+                        list_text.append("    " + newText)
+                        newText = ""
+                    if newText =="" and len(list_text)>1 and list_text[(len(list_text)-1)]!="" and list_text[(len(list_text)-2)]!="":
+                        list_text.append("")
+                elif i > 0:
+                    if (text[i - 1] >= "A" and text[i - 1] <= "Z") or (text[i - 1] >= "a" and text[i - 1] <= "z") \
+                            or text[i - 1] == "," or text[i - 1] == "." or text[i - 1] == "?" or text[i - 1] == "!":  # this is for word spacing.
+                        newText += text[i]
         return list_text
 
     def LyricsDisplay(self): #to be continued
@@ -2114,7 +2125,7 @@ class GrabLyricsTool:
         window.grab_set()
         window.focus_force()
 
-class GrabArtistBio():
+class GrabArtistBio:
     def __init__(self, index="empty"):
         global allButtonsFont
         global dialog
@@ -2184,64 +2195,65 @@ class GrabArtistBio():
     def filterTextFromLastFM(self, data):
         text = BeautifulSoup(data, "html.parser")
         text = text.decode("utf-8")
-        # Start filtering the html content of the webpage
-        text = text.split('<div class="wiki-content" itemprop="description">')
-        text = text[1].split('</div>')
-        text = text[0]
-        text = text.replace("   ", "")
-
-        text = text.replace("<a>", "")
-        text = text.replace("</a>", "")
-        text = text.replace("<b>", "")
-        text = text.replace("</b>", "")
-        text = text.replace("<p>", "")
-        text = text.replace("</p>", "")
-        text = text.replace("<strong>", "")
-        text = text.replace("</strong>", "")
-        text = text.replace("</br>", "")
-        text = text.replace("<br/>", "")
-        text = text.replace("<br>", "")
-        text = text.replace("<em>", "")
-        text = text.replace("</em>", "")
-        text = text.replace("<i>", "")
-        text = text.replace("</i>", "")
-        if "<a " in text:  # if there are any adds between these lyrics, lets remove them.
-            text = text.split("<a ")
-            aux = []
-            for element in text:
-                if '">' in element:
-                    element = element.split('">')
-                    aux.append(element[1] + " ")
-                else:
-                    aux.append(element)
-            text = "".join(aux)
-            text = text.replace("</a>", "")
-        if "<sup " in text:  # if there are any adds between these lyrics, lets remove them.
-            text = text.split("<sup ")
-            aux = []
-            for element in text:
-                if '</sup>' in element:
-                    element = element.split('</sup>')
-                    aux.append(element[1])
-                else:
-                    aux.append(element)
-            text = "".join(aux)
-            text = text.replace("</a>", "")
-        newText = ""
         list_text = []
-        splitParagraph = False
-        for i in range(0, len(text)):
-            if text[i] != "\n":
-                newText += text[i]
-            if (text[i] == "." and i < len(text)-1 and text[i+1]==" ") and (len(list_text)%5==0 or splitParagraph): #make a new paragraph after each 5 sentences.
-                list_text.append("  " + newText)
-                newText = ""
-                list_text.append("") #add an empty line
-            elif len(newText)>=45 and (text[i]==" " or text[i] =="-"):
-                list_text.append("  " +newText)
-                newText=""
-            if len(list_text) % 5 > 0 and len(list_text) % 5 < 3 and len(list_text) > 5:
-                splitParagraph = True
+        # Start filtering the html content of the webpage
+        if '<div class="wiki-content" itemprop="description">' in text: # if condition not fulfilled it means the artist is on lastFM but nothing was written about him.
+            text = text.split('<div class="wiki-content" itemprop="description">')
+            text = text[1].split('</div>')
+            text = text[0]
+            text = text.replace("   ", "")
+
+            text = text.replace("<a>", "")
+            text = text.replace("</a>", "")
+            text = text.replace("<b>", "")
+            text = text.replace("</b>", "")
+            text = text.replace("<p>", "")
+            text = text.replace("</p>", "")
+            text = text.replace("<strong>", "")
+            text = text.replace("</strong>", "")
+            text = text.replace("</br>", "")
+            text = text.replace("<br/>", "")
+            text = text.replace("<br>", "")
+            text = text.replace("<em>", "")
+            text = text.replace("</em>", "")
+            text = text.replace("<i>", "")
+            text = text.replace("</i>", "")
+            if "<a " in text:  # if there are any adds between these lyrics, lets remove them.
+                text = text.split("<a ")
+                aux = []
+                for element in text:
+                    if '">' in element:
+                        element = element.split('">')
+                        aux.append(element[1] + " ")
+                    else:
+                        aux.append(element)
+                text = "".join(aux)
+                text = text.replace("</a>", "")
+            if "<sup " in text:  # if there are any adds between these lyrics, lets remove them.
+                text = text.split("<sup ")
+                aux = []
+                for element in text:
+                    if '</sup>' in element:
+                        element = element.split('</sup>')
+                        aux.append(element[1])
+                    else:
+                        aux.append(element)
+                text = "".join(aux)
+                text = text.replace("</a>", "")
+            newText = ""
+            splitParagraph = False
+            for i in range(0, len(text)):
+                if text[i] != "\n":
+                    newText += text[i]
+                if (text[i] == "." and i < len(text)-1 and text[i+1]==" ") and (len(list_text)%5==0 or splitParagraph): #make a new paragraph after each 5 sentences.
+                    list_text.append("  " + newText)
+                    newText = ""
+                    list_text.append("") #add an empty line
+                elif len(newText)>=45 and (text[i]==" " or text[i] =="-"):
+                    list_text.append("  " +newText)
+                    newText=""
+                if len(list_text) % 5 > 0 and len(list_text) % 5 < 3 and len(list_text) > 5:
+                    splitParagraph = True
         return list_text
 
     def ArtistBioDisplay(self): #to be continued
@@ -3917,7 +3929,7 @@ def songInfo():
                                     + "Length: {:0>8}" .format(str(datetime.timedelta(seconds = int(element.Length))) ) + "\n"
                                     + "Start Time: {:0>8}" .format(str(datetime.timedelta(seconds = int(element.startPos))) ) + "\n"
                                     + "End Time: {:0>8}" .format(str(datetime.timedelta(seconds = int(element.endPos))) ) + "\n"
-                                    + "Size: " + str(element.fileSize) + "\n"
+                                    + "Size: " + str(element.fileSize) + " MB\n"
                                     + "Rating: " + str(element.Rating) + "\n")
 
 def openFileInExplorer():
@@ -3936,17 +3948,16 @@ def rightClickListboxElement(event):
                 value = listbox.get(index)
                 value = value.split(". ")
                 index = int(value[0])
-        aMenu = tk.Menu(window, tearoff=0)
-        aMenu.add_command(label='Delete', command=remove_song)
-        aMenu.add_command(label='File Info', command=songInfo)
-        aMenu.add_command(label='Move Up', command=move_up)
-        aMenu.add_command(label='Move Down', command=move_down)
-        aMenu.add_command(label='Open in Explorer', command=openFileInExplorer)
-        if len(listboxSelectedEvent.curselection()) > 0:
+            aMenu = tk.Menu(window, tearoff=0)
+            aMenu.add_command(label='Delete', command=remove_song)
+            aMenu.add_command(label='File Info', command=songInfo)
+            aMenu.add_command(label='Move Up', command=move_up)
+            aMenu.add_command(label='Move Down', command=move_down)
+            aMenu.add_command(label='Open in Explorer', command=openFileInExplorer)
             aMenu.add_command(label='MP3 Tag Modifier', command= lambda:showMp3TagModifierWindow(index))
             aMenu.add_command(label='Grab Song Lyrics', command= lambda:showGrabLyricsWindow(index))
             aMenu.add_command(label='Grab Artist Bio', command= lambda:showArtistBioWindow(index))
-        aMenu.post(event.x_root, event.y_root)
+            aMenu.post(event.x_root, event.y_root)
 
 def showMp3TagModifierWindow(index):
     if dialog == None:
@@ -3960,7 +3971,7 @@ def showAboutWindow():
             "\nWelcome To PyPlay Mp3 Player,\n\n"+
             "This Application was developed by Dragos Vacariu from 14 June 2019 to 10 July 2019, "+
             "with the main purpose of testing programming capabilities, especially python skills.\n"+
-            "Work efforts were around 100 hours, so "+
+            "Work efforts were around 115 hours, so "+
             "there might still be bugs left behind for me to find out later.\n"+
             "\nMy Contact Details are the following:\n" +
             "Email: dragos.vacariu@mail.com\n" +

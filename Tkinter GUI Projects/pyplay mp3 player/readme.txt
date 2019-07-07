@@ -18,4 +18,4 @@ The .PNG files from "installation of pip libraries guide" have no functional imp
 to install libraries, in order to use this script.
 
 The preinstalled version is also available on WEB at:
-https://mega.nz/#!eQ4hGAII!rimyKbRpTF0rwy4VbGyQ6haeQvZ7VVu25v-o-eqFSl4
+https://mega.nz/#F!GYxHjSgD!NM0715JCrPXXhfPERyLe-w
