@@ -17,6 +17,8 @@ MASS FILE EDITOR to compose these 2 tags from FileName.
 The .PNG files from "installation of pip libraries guide" have no functional impact, they are just a guide of how 
 to install libraries, in order to use this script.
 
+clear.mp3 is a file used to clear the playback when making some changes for the file currently loaded.
+
 The cross-platform preinstalled version is also available on WEB at:
 https://mega.nz/#F!GYxHjSgD!NM0715JCrPXXhfPERyLe-w
 
