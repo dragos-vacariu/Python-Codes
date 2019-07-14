@@ -3440,11 +3440,14 @@ def changeSkin(event):
 
 def calculateScreenHeightWidth():
     global allButtonsFont
+    CurrentFont=""
     if type(allButtonsFont) == StringVar:
-        allButtonsFont = allButtonsFont.get()
-    fontFam = font.Font(family=allButtonsFont.split(" ")[0], size=allButtonsFont.split(" ")[1])
-    if len(allButtonsFont.split(" ")) == 3 and allButtonsFont.split(" ")[2] == "bold":
-        fontFam = font.Font(family=allButtonsFont.split(" ")[0], size=allButtonsFont.split(" ")[1], weight=allButtonsFont.split(" ")[2])
+        CurrentFont = allButtonsFont.get()
+    else:
+        CurrentFont = allButtonsFont
+    fontFam = font.Font(family=CurrentFont.split(" ")[0], size=CurrentFont.split(" ")[1])
+    if len(CurrentFont.split(" ")) == 3 and CurrentFont.split(" ")[2] == "bold":
+        fontFam = font.Font(family=CurrentFont.split(" ")[0], size=CurrentFont.split(" ")[1], weight=CurrentFont.split(" ")[2])
     screenHeight = fontFam.metrics("linespace")
     screenHeight*=listbox["height"]
     screenHeight+=10 # the margin on Y axis of the frame.
