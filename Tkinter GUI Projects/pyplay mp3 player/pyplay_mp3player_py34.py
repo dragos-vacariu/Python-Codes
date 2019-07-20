@@ -920,14 +920,14 @@ class Customize(Window):
         
         self.crossFadeBetweenTracks = tk.IntVar()
         self.crossFadeBetweenTracks.set(int(play_list.useCrossFade))
-        tk.Checkbutton(self.top, text="Use crossfading.", fg=fontColor.get(), font=allButtonsFont.get(),
+        tk.Checkbutton(self.top, text="Use cross-fading.", fg=fontColor.get(), font=allButtonsFont.get(),
                        bg=color, variable=self.crossFadeBetweenTracks, command=self.enableDisableCrossFade,
                        selectcolor="black").place(x=columnOne, y=432)
                 
         tk.Label(self.top, text="Danthology refers to resuming the next song \n"+
                                 "at the duration the current one has ended.\n" +
                                 "This feature enables easier browse among \n"+
-                                "unknown songs.", fg=fontColor.get(),
+                                "unknown media.", fg=fontColor.get(),
                         font=allButtonsFont.get(), bg=color).place(x=180, y=510)
 
         self.top.bind("<Escape>", self.destroyEsc)
@@ -2641,7 +2641,8 @@ custom_color_list = ["green", "yellow", "purple", "black", "brown", "sienna", "c
 radioButtonsDefaultColor = "lightgray"
 
 custom_font_list = ["Arial 10", "Consolas 10", "Courier 9", "Verdana 9", "Georgia 9", "Tahoma 9", "Rockwell 10", "Fixedsys 11", "Candara 10", "Impact 9", \
-                                    "Calibri 10 italic", "Modern 10 bold", "Harrington 10 bold", "Stencil 10 italic"]
+                                    "Calibri 10 italic", "Modern 10 bold", "Harrington 10 bold", "Stencil 10 italic", "Forte 10", "System 11", "Times 11", \
+                                    "Unispace 9", "Stencil 9", "Haettenschweiler 12"]
 progressViewRealTime = 1 #1 - for 1 second
 play_list = Playlist()
 
@@ -2861,9 +2862,6 @@ def play_music(): #this function is called when clicking on Play Button.
             if (play_list.validFiles[play_list.currentSongIndex].fadein_duration == 0 and play_list.useCrossFade==False) \
                     or play_list.currentSongPosition>play_list.validFiles[play_list.currentSongIndex].fadein_duration:
                 pygame.mixer.music.set_volume(play_list.VolumeLevel)
-            elif play_list.useCrossFade:
-                level = (play_list.crossFadeGap/play_list.crossFadeDuration) * play_list.VolumeLevel;
-                pygame.mixer.music.set_volume(level) #by default song will start from second 3, with fade_in of 10 seconds, so volume shall be calculated
             else: # enter here if song uses fadein
                 pygame.mixer.music.set_volume(0.0)
             if listBox_Song_selected_index != None and type(dialog) != SearchTool:
@@ -4733,8 +4731,8 @@ def showCuttingTool():
             if play_list.useCrossFade == False:
                 CuttingTool(window)
             else:
-                messagebox.showinfo("Information", "Sorry!\n\nYou cannot use this feature while crossfading is enabled.\n\n"+
-                "Crossfading readjust the length of your tracks so that you won't hear gaps between them.")
+                messagebox.showinfo("Information", "Sorry!\n\nYou cannot use this feature while cross-fading is enabled.\n\n"+
+                "Cross-fading readjust the length of your tracks so that you won't hear gaps between them.")
         else:
             messagebox.showinfo("Information", "Please close the other component window before proceed.")
     else:
