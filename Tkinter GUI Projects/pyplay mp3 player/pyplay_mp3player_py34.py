@@ -2862,9 +2862,8 @@ def play_music(): #this function is called when clicking on Play Button.
                     or play_list.currentSongPosition>play_list.validFiles[play_list.currentSongIndex].fadein_duration:
                 pygame.mixer.music.set_volume(play_list.VolumeLevel)
             elif play_list.useCrossFade:
-                level = play_list.crossFadeGap/play_list.crossFadeDuration;
-                level = ((float )((int)(level * 10))) / 10 # removing extra decimals, I only want 1 decimal.
-                pygame.mixer.music.set_volume(level) #by default song will start from second 3, with fade_in of 10 seconds, so volume shall be 0.3
+                level = (play_list.crossFadeGap/play_list.crossFadeDuration) * play_list.VolumeLevel;
+                pygame.mixer.music.set_volume(level) #by default song will start from second 3, with fade_in of 10 seconds, so volume shall be calculated
             else: # enter here if song uses fadein
                 pygame.mixer.music.set_volume(0.0)
             if listBox_Song_selected_index != None and type(dialog) != SearchTool:
