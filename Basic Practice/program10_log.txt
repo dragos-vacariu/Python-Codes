@@ -1,0 +1,8 @@
+Error 404: source not found
+Warning 505: Duplicated
+Warning 401: Double definintions of variable x_armsasd
+Error 444: Missing semi-colon
+Error 901: cannot #include header file
+ERROR 981: incomplete definition of pointer type int
+WARNING: indentation missing at line #909
+Total: Wrg3, Err4

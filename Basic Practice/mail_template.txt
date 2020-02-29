@@ -1,0 +1,11 @@
+Dear USER_NAME,
+
+You have the following errors:
+
+The file: 	FILE_NAME 
+Error:	  	"ERROR_MESSAGE" 
+Line:     	LINE
+
+Please solve the error as soon as possible.
+
+Your sincere: DEPARTMENT_NAME
