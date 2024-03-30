@@ -146,3 +146,6 @@ print("Result: ")
 
 polylineDoi = punctUnu + (punctDoi + punctUnu) # building a polyline from 3 points
 print(polylineDoi)
+
+
+input("\nPress ENTER to exit.")

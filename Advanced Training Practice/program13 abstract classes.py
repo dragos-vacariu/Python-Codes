@@ -54,3 +54,4 @@ class InstructionConcrete(Command):
 
 objIns = InstructionConcrete()
 checkCommand(objIns)
+input("Press any RETURN to exit.")

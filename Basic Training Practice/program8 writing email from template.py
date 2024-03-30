@@ -15,7 +15,7 @@ def composeMail():
 
 def composeMailFromTemplate():
     global list_errors
-    file = open("mail_template.txt", "r")
+    file = open("./resources/mail_template.txt", "r")
     email_template = ""
     for line in file:
         email_template += line
@@ -36,3 +36,5 @@ list_errors = [{"file":"supplier.c", "line":5874, "error_type":"Missing semi-col
 
 composeMailFromTemplate()
 print("\nAll the users have been notified.".upper())
+
+input("\nPress ENTER to exit.")

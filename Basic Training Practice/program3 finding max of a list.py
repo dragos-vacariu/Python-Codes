@@ -13,3 +13,5 @@ while(i < len(elements)) :
     i+=1
 
 print("\nMAX este: " + str(max) )
+
+input("\nPress ENTER to exit.")

@@ -20,3 +20,4 @@ try:
         print("Action stop.")
 except Exception:
     print("Exception occured.")
+input("Press any RETURN to exit.")

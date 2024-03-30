@@ -18,3 +18,5 @@ l.staticMe()
 #static methods can be invoked only with the class name
 
 LINE.staticMe()
+
+input("\nPress ENTER to exit.")

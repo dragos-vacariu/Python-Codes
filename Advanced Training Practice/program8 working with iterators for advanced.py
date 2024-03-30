@@ -31,3 +31,4 @@ while True:
 
 #print(len("string Value"))
 '''Translated as print("string Value".__len__())'''
+input("Press any RETURN to exit.")

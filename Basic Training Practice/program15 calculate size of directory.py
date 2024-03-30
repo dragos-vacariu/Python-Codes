@@ -16,3 +16,5 @@ if os.path.exists(filepath):
    print("Number of files: " + str(number_of_files))
 else:
     print("Wrong filepath was entered.")
+
+input("\nPress ENTER to exit.")

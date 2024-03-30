@@ -43,10 +43,10 @@ def GenerateList(x):
 
 def saveFile(option="text"):
     if(option=="binary"):
-        my_file = open("file_program4.bin", "wb")
+        my_file = open("./resources/file_program4.bin", "wb")
         pickle.dump(elements, my_file)
     else:
-        my_file = open("file_program4.txt", "w", encoding="utf-8")
+        my_file = open("./resources/file_program4.txt", "w", encoding="utf-8")
         for element in elements:
             my_file.write(str(element) + "\n")
     my_file.close()
@@ -76,7 +76,7 @@ while(userChoice != 9 ):
         saveFile()
         print("Salvare completa")
     elif userChoice == 8 :
-        my_file = open("file_program4.txt", "r", encoding="utf-8")
+        my_file = open("./resources/file_program4.txt", "r", encoding="utf-8")
         elements = list()
         for line in my_file:
             elements.append(line.replace("\n",""))
@@ -86,12 +86,12 @@ while(userChoice != 9 ):
         saveFile("binary")
         print("Salvare binara completa")
     elif userChoice ==10:
-        my_file = open("file_program4.bin", "rb")
+        my_file = open("./resources/file_program4.bin", "rb")
         elements = pickle.load(my_file)
         my_file.close()
         print("Restaurare binara completa")
     elif userChoice == 11 :
-        my_file = open("file_program4.txt", "r", encoding="utf-8")
+        my_file = open("./resources/file_program4.txt", "r", encoding="utf-8")
         saved_file = my_file.read().split()
         if saved_file != elements:
             print("Vrei sa salvezi?")
@@ -101,3 +101,5 @@ while(userChoice != 9 ):
                 print("Salvare completa")
     elif userChoice > 11 :
         print("Optiune inexistenta")
+
+input("\nPress ENTER to exit.")

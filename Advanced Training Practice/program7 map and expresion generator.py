@@ -14,3 +14,4 @@ print(l)
 #using map
 mapxp = map(lambda x: x**2, [2,3,4,5])
 print(mapxp)
+input("Press any RETURN to exit.")

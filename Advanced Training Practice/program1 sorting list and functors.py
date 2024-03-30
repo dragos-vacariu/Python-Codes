@@ -67,3 +67,4 @@ def raport(persons, strV):
     print()
 
 main()
+input("Press any RETURN to exit.")

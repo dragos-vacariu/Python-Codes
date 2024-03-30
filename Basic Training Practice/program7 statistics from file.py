@@ -5,7 +5,7 @@
 # -numar cuvinte unice (fara case)
 # -numar
 
-poezia = open("somnoroase_pasarele.txt", "r")
+poezia = open("./resources/somnoroase_pasarele.txt", "r")
 words = list()
 lines = 0
 frequecy_keeper = {}
@@ -36,3 +36,5 @@ print("Number of words: " + str(len(words)))
 print("Number of letters: " + str(characters))
 print("Number of unique words: " + str(len(word_unique)) + "\n")
 print(frequecy_keeper)
+
+input("\nPress ENTER to exit.")

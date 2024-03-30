@@ -22,3 +22,4 @@ def g(val):pass
 f(4,1,9) #OK
 f(4,'casa',55) #NOT OK, param 2 nu e ok.
 g('x')
+input("Press any RETURN to exit.")

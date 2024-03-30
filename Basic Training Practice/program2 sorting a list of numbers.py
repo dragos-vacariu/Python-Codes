@@ -12,3 +12,5 @@ for i in range(0, len(listOfObj)):
             listOfObj[j] = listOfObj[i] ^ listOfObj[j]
             listOfObj[i] = listOfObj[i] ^ listOfObj[j]
 print(listOfObj)
+
+input("\nPress ENTER to exit.")

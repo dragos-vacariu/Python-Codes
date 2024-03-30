@@ -28,4 +28,5 @@ def searchWordInFileDirs(dir, word): #this function is called when loading a dir
             findMatch(content,word,file)
 
 
-searchWordInFileDirs(r"C:\Users\Black\Desktop\python tutorial\pyweek advanced\exempleAvansati", "import")
+searchWordInFileDirs(r"./", "import")
+input("Press any RETURN to exit.")

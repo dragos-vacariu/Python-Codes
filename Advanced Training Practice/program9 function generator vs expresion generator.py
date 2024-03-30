@@ -15,3 +15,4 @@ for s in (st[x:] +st[0:x] for x in range(0,len(st))):
     print(s)
 
 '''Output: casa, asac, saca, acas'''
+input("Press any RETURN to exit.")

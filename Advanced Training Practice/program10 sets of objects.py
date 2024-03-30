@@ -34,3 +34,4 @@ s.add(Persoana("Popescu", "Ana", "27")) #if the __eq__ operator is overwritten, 
 '''
 
 print(s)
+input("Press any RETURN to exit.")

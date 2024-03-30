@@ -29,7 +29,7 @@ for line in data:
     memory = memory.replace(",", ".")
     memory = memory.replace("\n", "")
     if "K" in memory:
-        memory = float("".join(memory[:len(memory)-2]))*1024
+        memory = str("".join(memory[:len(memory)-2]))
     elif "M" in memory:
         memory = float("".join(memory[:len(memory) - 2])) * 1024**2
     elif "G" in memory:
@@ -44,3 +44,4 @@ print("TOP 5: \n")
 for x in range(0, 5):
     print(processList[x])
 
+input("Press any RETURN to exit.")

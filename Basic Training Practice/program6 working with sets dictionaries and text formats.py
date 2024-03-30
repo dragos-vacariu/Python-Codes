@@ -37,5 +37,7 @@ print("%s %s %s" % ("ala", "bala", "portocala")) #formating text like in c-style
 print("%d, %i, %f, %s" % (22, 11, 2.5, "blabla"))
 
 #Comprehensions
-l = [x**2 for x in range[0,10]] # L = Squares withing range 0- 10
-print (l)
+#l = [x**2 for x in range[0,10]] # L = Squares withing range 0- 10
+#print (l)
+
+input("\nPress ENTER to exit.")

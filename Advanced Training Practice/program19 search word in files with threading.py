@@ -36,7 +36,7 @@ class Worker(threading.Thread):
                         if file_printed:
                             print(filename)
                             file_printed = False
-                        print(str(line_count) + ":" + str(line.strip()))
+                        print("Line " + str(line_count) + ": " + str(line.strip()))
         except:
             pass
 
@@ -50,7 +50,7 @@ def main(directory, searched):
         for file in files:
             filename = os.path.join(root, file)
             names.put(filename)
-    print("Total " + str(counter) + "files.")
+    print("Total " + str(counter) + " files.\n")
 
     no_workers = 100
     workers = [Worker("W"+str(i), names, searched) for i in range(no_workers)]
@@ -60,6 +60,7 @@ def main(directory, searched):
 
 
 t0 = time.time()
-main(r"C:\Users\Black\Desktop\python tutorial\pyweek advanced\exempleAvansati", "import")
+main(r"./", "import")
 t1 = time.time()
-print("Time:" + str(t1-t0) + " seconds.")
+print("\nTime:" + str(t1-t0) + " seconds.")
+input("\nPress any RETURN to exit.")

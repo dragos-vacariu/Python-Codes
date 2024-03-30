@@ -60,3 +60,4 @@ write_xml(persoane, "fisier.xml")
 obj = read_xml("fisier.xml")
 
 print(obj)
+input("Press any RETURN to exit.")

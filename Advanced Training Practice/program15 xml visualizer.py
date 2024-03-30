@@ -34,3 +34,4 @@ def read_xml(filename):
     print(message)
 
 read_xml("fisier.xml")
+input("Press any RETURN to exit.")

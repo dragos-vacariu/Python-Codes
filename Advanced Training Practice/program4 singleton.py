@@ -12,4 +12,5 @@ class A: pass # Singleton a class that will only be instaciated once, all refere
 b = A()
 a = A()
 print(a is b)
+input("Press any RETURN to exit.")
 

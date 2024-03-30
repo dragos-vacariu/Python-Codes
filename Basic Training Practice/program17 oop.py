@@ -38,3 +38,5 @@ print(person.width)
 
 emp = Employee()
 print(emp.name)
+
+input("\nPress ENTER to exit.")
